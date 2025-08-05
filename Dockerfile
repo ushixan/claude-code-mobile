@@ -1,13 +1,20 @@
-# Simple single-stage build
+# Use Node.js with build tools
 FROM node:18-alpine
+
+# Install build dependencies for node-pty
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git
 
 WORKDIR /app
 
-# Copy all package files first
+# Copy package files
 COPY package*.json ./
 COPY server/package*.json ./server/
 
-# Install all dependencies
+# Install dependencies
 RUN npm install
 RUN cd server && npm install
 
@@ -17,12 +24,12 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Expose ports
+# Expose port
 EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Start backend server (frontend will be served by Express)  
+# Start server
 CMD ["npm", "run", "start:prod"]
