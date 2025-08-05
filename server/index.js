@@ -27,7 +27,17 @@ if (process.env.NODE_ENV === 'production') {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    connectedClients: io.engine.clientsCount 
+  });
+});
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working', timestamp: new Date().toISOString() });
 });
 
 // Terminal sessions
@@ -36,6 +46,7 @@ const terminals = new Map();
 // Create a new terminal session
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+  console.log('Total connected clients:', io.engine.clientsCount);
 
   socket.on('create-terminal', (data) => {
     const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
@@ -77,7 +88,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// File system API endpoints
+// Socket.io endpoint (important: before catch-all route)
+// This is handled automatically by socket.io
+
+// File system API endpoints  
 app.get('/api/files/tree', async (req, res) => {
   const rootPath = req.query.path || process.env.HOME;
   
@@ -200,7 +214,10 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Socket.io path: /socket.io/`);
 });

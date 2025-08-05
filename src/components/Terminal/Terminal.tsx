@@ -71,21 +71,20 @@ const TerminalComponent = () => {
 
     // Connect to WebSocket server
     const getWebSocketUrl = () => {
-      // Check if we have environment variables
-      const envWsUrl = import.meta.env.VITE_WS_URL;
-      if (envWsUrl) return envWsUrl;
-      
-      // Fallback to dynamic detection
-      if (window.location.hostname === 'localhost') {
+      // For development
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:3001';
       }
       
-      // For production, use same host with different protocol
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${protocol}//${window.location.host}`;
+      // For production, return current origin (same protocol, host, and port)
+      return window.location.origin;
     };
     
-    const socket = io(getWebSocketUrl());
+    const wsUrl = getWebSocketUrl();
+    console.log('Connecting to WebSocket:', wsUrl);
+    console.log('Current location:', window.location.href);
+    
+    const socket = io(wsUrl);
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -112,6 +111,12 @@ const TerminalComponent = () => {
       console.log('Disconnected from terminal server');
       setIsConnected(false);
       term.write('\r\n\x1b[31mDisconnected from server\x1b[0m\r\n');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+      setIsConnected(false);
+      term.write('\r\n\x1b[31mConnection error: ' + error.message + '\x1b[0m\r\n');
     });
 
     // Handle terminal input
