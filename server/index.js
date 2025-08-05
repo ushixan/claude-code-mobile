@@ -561,11 +561,16 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const PORT = process.env.PORT || 3001;
-const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+const PORT = process.env.PORT || 8080;
+const HOST = '0.0.0.0'; // Always bind to 0.0.0.0 for containers
 
-server.listen(PORT, HOST, () => {
+server.listen(PORT, HOST, (error) => {
+  if (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
   console.log(`Server running on ${HOST}:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Socket.io path: /socket.io/`);
+  console.log(`Process ID: ${process.pid}`);
 });

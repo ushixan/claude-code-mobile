@@ -37,12 +37,15 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Expose port
-EXPOSE 3001
+# Set production environment
+ENV NODE_ENV=production
+
+# Expose port (Railway will override with its own PORT)
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
 
 # Start server
 CMD ["npm", "run", "start"]
