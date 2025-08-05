@@ -24,24 +24,24 @@ function MainApp() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900 text-white">
-      {/* Header with user info */}
-      <header className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Terminal className="w-5 h-5 text-white" />
+    <div className="flex flex-col h-screen bg-slate-900 text-white" style={{ height: '100dvh' }}>
+      {/* Mobile-optimized Header */}
+      <header className="bg-slate-800 border-b border-slate-700 px-3 py-2 flex items-center justify-between shrink-0">
+        <div className="flex items-center space-x-2 min-w-0">
+          <div className="bg-blue-600 p-1.5 rounded-lg shrink-0">
+            <Terminal className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <h1 className="font-semibold text-white">Mobile Terminal IDE</h1>
-            <p className="text-xs text-slate-400">{user?.email}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-semibold text-sm text-white truncate">Mobile IDE</h1>
+            <p className="text-xs text-slate-400 truncate">{user?.email}</p>
           </div>
         </div>
         <button
           onClick={handleSignOut}
-          className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+          className="flex items-center space-x-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors shrink-0"
         >
           <LogOut className="w-4 h-4" />
-          <span className="text-sm">Sign Out</span>
+          <span className="text-xs hidden sm:inline">Sign Out</span>
         </button>
       </header>
 
@@ -55,20 +55,20 @@ function MainApp() {
         </div>
       </main>
 
-      {/* Bottom Tab Navigation */}
-      <nav className="flex justify-around items-center bg-slate-800 border-t border-slate-700 px-2 py-1 safe-area-inset-bottom">
+      {/* Mobile-optimized Bottom Navigation */}
+      <nav className="flex justify-around items-center bg-slate-800 border-t border-slate-700 px-2 pb-safe shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
         {tabs.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all active:scale-95 flex-1 ${
               activeTab === id
                 ? 'text-blue-400 bg-slate-700/50'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-400 active:text-slate-200'
             }`}
           >
-            <Icon size={24} />
-            <span className="text-xs mt-1">{label}</span>
+            <Icon size={20} />
+            <span className="text-[10px] mt-1 font-medium">{label}</span>
           </button>
         ))}
       </nav>
@@ -86,11 +86,22 @@ function App() {
       navigator.serviceWorker.register('/sw.js').catch(console.error);
     }
 
-    // Prevent pull-to-refresh on iOS
-    document.body.addEventListener('touchmove', (e) => {
-      if (e.touches.length > 1) return;
-      e.preventDefault();
-    }, { passive: false });
+    // Better mobile handling
+    const preventOverscroll = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      // Allow scrolling in specific elements
+      if (target.closest('.allow-scroll')) return;
+      // Prevent overscroll on body
+      if (document.body.scrollTop === 0 && e.touches[0].clientY > 10) {
+        e.preventDefault();
+      }
+    };
+    
+    document.addEventListener('touchmove', preventOverscroll, { passive: false });
+    
+    return () => {
+      document.removeEventListener('touchmove', preventOverscroll);
+    };
   }, []);
 
   return (

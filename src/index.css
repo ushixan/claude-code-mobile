@@ -14,10 +14,16 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-y;
 }
 
 #root {
@@ -38,6 +44,11 @@ body {
 .xterm {
   height: 100%;
   width: 100%;
+  touch-action: pan-y;
+}
+
+.xterm-viewport {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* CodeMirror mobile optimizations */
@@ -46,8 +57,43 @@ body {
   font-size: 14px;
 }
 
+/* Mobile specific improvements */
 @media (max-width: 768px) {
   .cm-editor {
     font-size: 16px; /* Prevent zoom on iOS */
   }
+  
+  /* Hide scrollbars on mobile */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  * {
+    scrollbar-width: none;
+  }
+  
+  /* Better touch targets */
+  button {
+    min-height: 44px;
+  }
+  
+  /* Prevent zoom on input focus */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Allow scrolling in specific areas */
+.allow-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for iOS safe areas */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
 }

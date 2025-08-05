@@ -1,12 +1,13 @@
 # Use Node.js with build tools
 FROM node:18-alpine
 
-# Install build dependencies for node-pty
+# Install build dependencies for node-pty and bash for terminal
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    git
+    git \
+    bash
 
 WORKDIR /app
 

@@ -14,7 +14,7 @@ const TerminalComponent = () => {
   const fitAddonRef = useRef<FitAddon | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
+  const [fontSize, setFontSize] = useState(window.innerWidth < 768 ? 12 : 14);
   const [isConnected, setIsConnected] = useState(false);
   const { setTerminalReady, currentWorkspace } = useStore();
   const { user } = useAuth();
@@ -48,8 +48,10 @@ const TerminalComponent = () => {
       fontSize: fontSize,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       cursorBlink: true,
-      scrollback: 10000,
+      scrollback: 1000,
       allowProposedApi: true,
+      // Mobile optimizations
+      scrollOnUserInput: true,
     });
 
     xtermRef.current = term;

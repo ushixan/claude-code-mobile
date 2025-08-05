@@ -50,8 +50,8 @@ const AuthForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen h-screen overflow-y-auto bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md my-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
@@ -90,7 +90,7 @@ const AuthForm = () => {
         </div>
 
         {/* Auth Form */}
-        <div className="bg-slate-800/80 backdrop-blur rounded-2xl p-8 shadow-2xl">
+        <div className="bg-slate-800/80 backdrop-blur rounded-2xl p-6 sm:p-8 shadow-2xl">
           {/* GitHub Sign In Button */}
           <button
             onClick={handleGitHubSignIn}
@@ -153,8 +153,10 @@ const AuthForm = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 placeholder="Enter your email"
+                autoComplete="email"
+                inputMode="email"
               />
             </div>
 
@@ -169,8 +171,9 @@ const AuthForm = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
                 placeholder="Enter your password"
+                autoComplete="current-password"
               />
             </div>
 
