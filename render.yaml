@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mobile-terminal-ide
+    env: node
+    buildCommand: npm install && npm run build && cd server && npm install
+    startCommand: cd server && NODE_ENV=production npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
