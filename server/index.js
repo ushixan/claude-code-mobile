@@ -238,7 +238,23 @@ io.on('connection', (socket) => {
     // For now, allow terminals without user auth for backward compatibility
     // In production, you'd want to verify the JWT token here
     
-    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+    // Detect available shell - Alpine uses sh by default
+    let shell = 'sh'; // Default fallback
+    if (os.platform() === 'win32') {
+      shell = 'powershell.exe';
+    } else {
+      // Check for available shells in order of preference
+      const fs = require('fs');
+      if (fs.existsSync('/bin/bash')) {
+        shell = '/bin/bash';
+      } else if (fs.existsSync('/usr/bin/bash')) {
+        shell = '/usr/bin/bash';
+      } else if (fs.existsSync('/bin/sh')) {
+        shell = '/bin/sh';
+      }
+    }
+    
+    console.log('Using shell:', shell);
     
     // Create user-specific workspace directory
     let cwd = data.cwd || process.cwd();
@@ -262,16 +278,28 @@ io.on('connection', (socket) => {
       }
     }
     
-    const term = pty.spawn(shell, [], {
-      name: 'xterm-color',
-      cols: data.cols || 80,
-      rows: data.rows || 24,
-      cwd: cwd,
-      env: {
-        ...process.env,
-        PS1: userId ? `[${userId.slice(0, 8)}@workspace] $ ` : '$ ' // Custom prompt for user
-      }
-    });
+    let term;
+    try {
+      term = pty.spawn(shell, [], {
+        name: 'xterm-color',
+        cols: data.cols || 80,
+        rows: data.rows || 24,
+        cwd: cwd,
+        env: {
+          ...process.env,
+          TERM: 'xterm-256color',
+          PS1: userId ? `[${userId.slice(0, 8)}@workspace] $ ` : '$ ' // Custom prompt for user
+        }
+      });
+      console.log('Terminal spawned successfully for', socket.id);
+    } catch (error) {
+      console.error('Error spawning terminal:', error);
+      socket.emit('terminal-error', { 
+        message: 'Failed to create terminal session', 
+        error: error.message 
+      });
+      return;
+    }
 
     const terminalSession = {
       term,

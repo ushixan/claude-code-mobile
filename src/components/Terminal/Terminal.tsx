@@ -94,11 +94,19 @@ const TerminalComponent = () => {
     });
 
     socket.on('terminal-ready', () => {
+      console.log('Terminal ready');
       setTerminalReady(true);
+      term.write('\x1b[32mTerminal connected successfully!\x1b[0m\r\n');
     });
 
     socket.on('terminal-output', (data: string) => {
       term.write(data);
+    });
+    
+    socket.on('terminal-error', (error: any) => {
+      console.error('Terminal error:', error);
+      term.write(`\r\n\x1b[31mTerminal Error: ${error.message || 'Unknown error'}\x1b[0m\r\n`);
+      setIsConnected(false);
     });
 
     socket.on('disconnect', () => {
