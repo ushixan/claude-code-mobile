@@ -21,14 +21,13 @@ html {
 body {
   margin: 0;
   padding: 0;
-  overscroll-behavior: contain;
+  width: 100%;
+  height: 100%;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 /* PWA specific styles for iOS */
@@ -94,4 +93,12 @@ body {
 /* Fix for iOS safe areas */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+}
+
+/* Ensure proper scrolling on auth pages */
+.auth-container {
+  position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
 }

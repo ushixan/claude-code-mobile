@@ -85,23 +85,6 @@ function App() {
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
       navigator.serviceWorker.register('/sw.js').catch(console.error);
     }
-
-    // Better mobile handling
-    const preventOverscroll = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      // Allow scrolling in specific elements
-      if (target.closest('.allow-scroll')) return;
-      // Prevent overscroll on body
-      if (document.body.scrollTop === 0 && e.touches[0].clientY > 10) {
-        e.preventDefault();
-      }
-    };
-    
-    document.addEventListener('touchmove', preventOverscroll, { passive: false });
-    
-    return () => {
-      document.removeEventListener('touchmove', preventOverscroll);
-    };
   }, []);
 
   return (
@@ -118,17 +101,25 @@ function AuthenticatedApp() {
 
   useEffect(() => {
     // Apply overflow hidden only when user is logged in (MainApp)
+    // Allow normal scrolling on auth pages
     if (user) {
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
     } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
+      // Ensure scrolling works on login page
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+      document.body.style.position = '';
+      document.body.style.width = '';
     }
     
     return () => {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     };
   }, [user]);
 
