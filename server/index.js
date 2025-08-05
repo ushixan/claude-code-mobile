@@ -7,6 +7,16 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs').promises;
 
+// Global error handlers to prevent server crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit - try to recover
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -324,18 +334,42 @@ io.on('connection', (socket) => {
     });
 
     socket.on('terminal-input', (data) => {
-      term.write(data);
+      if (term && typeof term.write === 'function') {
+        try {
+          term.write(data);
+        } catch (error) {
+          console.error('Error writing to terminal:', error);
+        }
+      }
     });
 
     socket.on('resize', (data) => {
-      term.resize(data.cols, data.rows);
+      if (term && typeof term.resize === 'function') {
+        try {
+          // Validate dimensions
+          const cols = Math.max(1, Math.min(data.cols || 80, 500));
+          const rows = Math.max(1, Math.min(data.rows || 24, 200));
+          term.resize(cols, rows);
+        } catch (error) {
+          console.error('Error resizing terminal:', error.message);
+          // Don't crash the server on resize errors
+        }
+      }
     });
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
       const session = terminals.get(socket.id);
-      if (session) {
-        session.term.kill();
+      if (session && session.term) {
+        try {
+          // Properly kill the terminal process
+          if (typeof session.term.kill === 'function') {
+            session.term.kill();
+          }
+        } catch (error) {
+          console.error('Error killing terminal:', error.message);
+        }
+        
         terminals.delete(socket.id);
         
         // Clean up user tracking
