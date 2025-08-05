@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:server": "cd server && npm run start",
     "dev:all": "npm run dev & npm run dev:server",
-    "build": "tsc -b && vite build && cd server && npm install",
+    "build": "tsc -b && vite build",
     "start": "NODE_ENV=production node server/index.js",
     "lint": "eslint .",
     "preview": "vite preview"
