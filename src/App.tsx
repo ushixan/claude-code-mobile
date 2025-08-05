@@ -116,6 +116,22 @@ function AuthenticatedApp() {
 
   console.log('AuthenticatedApp render:', { user: !!user, loading });
 
+  useEffect(() => {
+    // Apply overflow hidden only when user is logged in (MainApp)
+    if (user) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [user]);
+
   if (loading) {
     console.log('Showing loading screen');
     return (
