@@ -47,6 +47,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
 
-# Ensure we're in the right directory and start server
+# Ensure we're in the right directory
 WORKDIR /app
-CMD ["/usr/local/bin/node", "server/index.js"]
+
+# Use shell form to ensure proper execution
+CMD node server/index.js
