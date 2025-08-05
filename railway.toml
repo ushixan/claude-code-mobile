@@ -2,14 +2,9 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "npm run start:prod"
+startCommand = "cd server && NODE_ENV=production npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 
-[[services]]
-name = "backend"
-source = "server"
-
-[[services]]
-name = "frontend"
-source = "."
+[variables]
+NODE_ENV = "production"

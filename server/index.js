@@ -22,7 +22,33 @@ app.use(express.json());
 // Serve static files from dist directory in production
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist');
-  app.use(express.static(distPath));
+  console.log('Serving static files from:', distPath);
+  
+  // Check if dist directory exists
+  try {
+    const distExists = require('fs').existsSync(distPath);
+    console.log('Dist directory exists:', distExists);
+    if (distExists) {
+      const files = require('fs').readdirSync(distPath);
+      console.log('Files in dist:', files);
+    }
+  } catch (err) {
+    console.error('Error checking dist directory:', err);
+  }
+  
+  // Serve static files with proper headers
+  app.use(express.static(distPath, {
+    maxAge: '1d',
+    etag: false,
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+      if (path.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      }
+    }
+  }));
 }
 
 // Health check endpoint
