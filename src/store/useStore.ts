@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { UserWorkspace } from '../lib/supabase';
 
 interface FileNode {
   name: string;
@@ -26,6 +27,9 @@ interface AppState {
   
   fileTree: FileNode[];
   setFileTree: (tree: FileNode[]) => void;
+  
+  currentWorkspace: UserWorkspace | null;
+  setCurrentWorkspace: (workspace: UserWorkspace | null) => void;
   
   terminalReady: boolean;
   setTerminalReady: (ready: boolean) => void;
@@ -70,6 +74,9 @@ export const useStore = create<AppState>((set) => ({
   
   fileTree: [],
   setFileTree: (tree) => set({ fileTree: tree }),
+  
+  currentWorkspace: null,
+  setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   
   terminalReady: false,
   setTerminalReady: (ready) => set({ terminalReady: ready }),

@@ -3,11 +3,14 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
 import { X, Save } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 const Editor = () => {
-  const { openFiles, activeFile, closeFile, setActiveFile, updateFileContent } = useStore();
+  const { openFiles, activeFile, closeFile, setActiveFile, updateFileContent, currentWorkspace } = useStore();
+  const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
   
   const activeFileData = openFiles.find(f => f.path === activeFile);
 
@@ -17,10 +20,34 @@ const Editor = () => {
     }
   }, [activeFile, updateFileContent]);
 
-  const handleSave = () => {
-    if (activeFileData) {
-      // TODO: Implement save via API
-      console.log('Saving file:', activeFile);
+  const handleSave = async () => {
+    if (!activeFileData || !user) return;
+    
+    setSaving(true);
+    try {
+      // Save file to server's file system
+      const response = await fetch('/api/files/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: activeFileData.path,
+          content: activeFileData.content,
+          userId: user.id,
+          workspaceId: user.id
+        })
+      });
+      
+      if (response.ok) {
+        console.log('File saved successfully:', activeFile);
+        // You could add a toast notification here
+      } else {
+        alert('Failed to save file');
+      }
+    } catch (error) {
+      console.error('Error saving file:', error);
+      alert('Error saving file: ' + error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -96,12 +123,23 @@ const Editor = () => {
       )}
 
       {/* Floating save button */}
-      <button
-        onClick={handleSave}
-        className="absolute bottom-4 right-4 w-14 h-14 bg-green-600 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-      >
-        <Save size={24} />
-      </button>
+      {activeFileData && (
+        <button
+          onClick={handleSave}
+          disabled={saving || !user || !currentWorkspace}
+          className={`absolute bottom-4 right-4 w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform ${
+            saving 
+              ? 'bg-yellow-600 cursor-not-allowed' 
+              : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          {saving ? (
+            <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+          ) : (
+            <Save size={24} />
+          )}
+        </button>
+      )}
     </div>
   );
 };

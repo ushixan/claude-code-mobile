@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RefreshCw, ExternalLink, Smartphone, Monitor } from 'lucide-react';
+import { RefreshCw, ExternalLink, Smartphone, Monitor, Shield } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
 const Preview = () => {
@@ -7,6 +7,7 @@ const Preview = () => {
   const [deviceMode, setDeviceMode] = useState<'mobile' | 'desktop'>('mobile');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [inputUrl, setInputUrl] = useState(previewUrl);
+  const [useProxy, setUseProxy] = useState(false);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -19,7 +20,28 @@ const Preview = () => {
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setPreviewUrl(inputUrl);
+    
+    if (useProxy && !inputUrl.startsWith('http://localhost') && !inputUrl.startsWith('http://127.0.0.1')) {
+      // Use comprehensive backend proxy for navigation-heavy sites
+      if (inputUrl.includes('google.com') || inputUrl.includes('search')) {
+        // Google needs comprehensive proxy for search navigation
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(inputUrl)}`;
+        console.log('Setting proxy URL for Google:', proxyUrl);
+        console.log('Original URL:', inputUrl);
+        setPreviewUrl(proxyUrl);
+      } else if (inputUrl.includes('github.com')) {
+        // GitHub can use simple Vite proxy
+        const path = inputUrl.replace('https://github.com', '');
+        setPreviewUrl(`/gh${path}`);
+      } else {
+        // Default to comprehensive backend proxy for unknown sites
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(inputUrl)}`;
+        setPreviewUrl(proxyUrl);
+      }
+    } else {
+      // Direct URL
+      setPreviewUrl(inputUrl);
+    }
   };
 
   const openInNewTab = () => {
@@ -39,9 +61,19 @@ const Preview = () => {
           type="url"
           value={inputUrl}
           onChange={(e) => setInputUrl(e.target.value)}
-          placeholder="http://localhost:3000"
+          placeholder="http://localhost:3000 or https://github.com"
           className="flex-1 px-3 py-1.5 bg-slate-700 text-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <button
+          type="button"
+          onClick={() => setUseProxy(!useProxy)}
+          className={`p-2 rounded-md transition-all ${
+            useProxy ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-slate-700'
+          }`}
+          title={useProxy ? 'Proxy enabled - bypasses iframe blocking' : 'Enable proxy to bypass iframe blocking'}
+        >
+          <Shield size={18} />
+        </button>
         <button
           type="button"
           onClick={handleRefresh}
@@ -81,13 +113,28 @@ const Preview = () => {
             className="w-full h-full border-0"
             title="Preview"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            onLoad={() => {
+              console.log('Iframe loaded successfully:', previewUrl);
+            }}
+            onError={() => {
+              console.log('Iframe failed to load:', previewUrl);
+            }}
           />
         </div>
       </div>
 
       {/* Port Configuration Helper */}
       <div className="p-2 bg-slate-800 border-t border-slate-700 text-xs text-slate-400 text-center">
-        Tip: Use port forwarding in terminal to expose local services
+        <div>Tip: Use port forwarding in terminal to expose local services</div>
+        <div className="mt-1 flex items-center justify-center gap-2">
+          <Shield size={14} className={useProxy ? 'text-green-400' : 'text-slate-400'} />
+          <span className={useProxy ? 'text-green-400' : 'text-yellow-400'}>
+            {useProxy 
+              ? 'Proxy enabled - can view blocked sites like GitHub, Google' 
+              : 'Enable proxy (shield icon) to bypass iframe blocking'
+            }
+          </span>
+        </div>
       </div>
     </div>
   );

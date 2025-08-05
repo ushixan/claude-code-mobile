@@ -5,6 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import io, { Socket } from 'socket.io-client';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
 import TouchControls from './TouchControls';
 
 const TerminalComponent = () => {
@@ -15,7 +16,8 @@ const TerminalComponent = () => {
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [isConnected, setIsConnected] = useState(false);
-  const { setTerminalReady } = useStore();
+  const { setTerminalReady, currentWorkspace } = useStore();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -69,33 +71,23 @@ const TerminalComponent = () => {
       term.focus();
     }, 100);
 
-    // Connect to WebSocket server
-    const getWebSocketUrl = () => {
-      // For development
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:3001';
-      }
-      
-      // For production, return current origin (same protocol, host, and port)
-      return window.location.origin;
-    };
-    
-    const wsUrl = getWebSocketUrl();
-    console.log('Connecting to WebSocket:', wsUrl);
+    // Connect to WebSocket server - Vite proxy will handle routing in development
+    console.log('Connecting to WebSocket via current origin');
     console.log('Current location:', window.location.href);
     
-    const socket = io(wsUrl);
+    const socket = io();
     socketRef.current = socket;
 
     socket.on('connect', () => {
       console.log('Connected to terminal server');
       setIsConnected(true);
       
-      // Create terminal session
+      // Create terminal session with user context
       socket.emit('create-terminal', {
         cols: term.cols,
         rows: term.rows,
-        cwd: '/Users/usmanx/Desktop/phone terminal/mobile-terminal-ide'
+        userId: user?.id,
+        workspaceId: user?.id // Use user.id as workspaceId for simplicity
       });
     });
 
@@ -147,7 +139,7 @@ const TerminalComponent = () => {
       term.dispose();
       setTerminalReady(false);
     };
-  }, [fontSize, setTerminalReady]);
+  }, [fontSize, setTerminalReady, user, currentWorkspace]);
 
   // Pinch to zoom handler
   const handlePinch = (scale: number) => {

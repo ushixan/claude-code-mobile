@@ -1,0 +1,2 @@
+Welcome to your personal workspace!
+Your files are saved in the cloud and will persist between sessions.

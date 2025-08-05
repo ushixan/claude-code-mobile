@@ -13,6 +13,13 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Skip caching for development server requests (Vite)
+  const url = new URL(event.request.url);
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    // In development, don't intercept requests at all
+    return event.respondWith(fetch(event.request));
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(response => {

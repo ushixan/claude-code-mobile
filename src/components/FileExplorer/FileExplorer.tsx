@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, File, Folder, GitBranch, Plus, MoreVertical } from 'lucide-react';
+import { ChevronRight, ChevronDown, File, Folder, GitBranch, Plus, MoreVertical, RefreshCw } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FileNode {
   name: string;
@@ -9,40 +10,42 @@ interface FileNode {
   children?: FileNode[];
 }
 
-// Mock data for now
-const mockFileTree: FileNode[] = [
-  {
-    name: 'src',
-    path: '/src',
-    type: 'directory',
-    children: [
-      {
-        name: 'components',
-        path: '/src/components',
-        type: 'directory',
-        children: [
-          { name: 'App.tsx', path: '/src/components/App.tsx', type: 'file' },
-          { name: 'Header.tsx', path: '/src/components/Header.tsx', type: 'file' },
-        ]
-      },
-      { name: 'index.ts', path: '/src/index.ts', type: 'file' },
-      { name: 'styles.css', path: '/src/styles.css', type: 'file' },
-    ]
-  },
-  { name: 'package.json', path: '/package.json', type: 'file' },
-  { name: 'README.md', path: '/README.md', type: 'file' },
-];
-
 const FileExplorer = () => {
   const { fileTree, setFileTree, openFile } = useStore();
+  const { user } = useAuth();
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set(['/']));
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [showContextMenu, setShowContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize with mock data
-    setFileTree(mockFileTree);
-  }, [setFileTree]);
+    loadFileTree();
+  }, [user]);
+
+  const loadFileTree = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Fetch file tree from server with user credentials
+      const response = await fetch(`/api/files/tree?userId=${user.id}&workspaceId=${user.id}`);
+      if (response.ok) {
+        const tree = await response.json();
+        setFileTree(tree);
+      } else {
+        console.error('Failed to load file tree');
+        setFileTree([]);
+      }
+    } catch (error) {
+      console.error('Error loading file tree:', error);
+      setFileTree([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleDirectory = (path: string) => {
     setExpandedDirs(prev => {
@@ -56,25 +59,113 @@ const FileExplorer = () => {
     });
   };
 
-  const handleFileClick = (node: FileNode) => {
+  const handleFileClick = async (node: FileNode) => {
     if (node.type === 'directory') {
       toggleDirectory(node.path);
     } else {
-      // Mock file content
-      openFile({
-        path: node.path,
-        content: `// Content of ${node.name}\n\nexport default function() {\n  return "Hello from ${node.name}";\n}`,
-        language: node.name.endsWith('.ts') || node.name.endsWith('.tsx') ? 'typescript' : 
-                  node.name.endsWith('.js') || node.name.endsWith('.jsx') ? 'javascript' :
-                  node.name.endsWith('.py') ? 'python' : 'text'
-      });
+      if (!user) return;
+      
+      try {
+        // Read file content from server
+        const response = await fetch(`/api/files/read?path=${encodeURIComponent(node.path)}&userId=${user.id}&workspaceId=${user.id}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const language = getLanguageFromFileName(node.name);
+          
+          openFile({
+            path: node.path,
+            content: data.content,
+            language
+          });
+        } else {
+          openFile({
+            path: node.path,
+            content: `// Error loading file: ${response.statusText}`,
+            language: 'text'
+          });
+        }
+      } catch (error) {
+        console.error('Error reading file:', error);
+        openFile({
+          path: node.path,
+          content: `// Error loading file: ${error}`,
+          language: 'text'
+        });
+      }
     }
     setSelectedPath(node.path);
+  };
+
+  const getLanguageFromFileName = (fileName: string): string => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const languageMap: Record<string, string> = {
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'js': 'javascript',
+      'jsx': 'javascript',
+      'py': 'python',
+      'md': 'markdown',
+      'json': 'json',
+      'html': 'html',
+      'css': 'css',
+      'scss': 'scss',
+      'yaml': 'yaml',
+      'yml': 'yaml',
+      'xml': 'xml',
+      'sh': 'shell',
+      'bash': 'shell',
+      'c': 'c',
+      'cpp': 'cpp',
+      'h': 'c',
+      'hpp': 'cpp',
+      'java': 'java',
+      'go': 'go',
+      'rs': 'rust',
+      'php': 'php',
+      'rb': 'ruby',
+      'swift': 'swift'
+    };
+    return languageMap[ext || ''] || 'text';
+  };
+
+  const handleRefresh = () => {
+    loadFileTree();
   };
 
   const handleContextMenu = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
     setShowContextMenu({ x: e.clientX, y: e.clientY, path });
+  };
+
+  const handleNewFile = async () => {
+    if (!user || !showContextMenu) return;
+    
+    const fileName = prompt('Enter file name:');
+    if (!fileName) return;
+    
+    const basePath = showContextMenu.path;
+    const newPath = basePath.endsWith('/') ? basePath + fileName : basePath + '/' + fileName;
+    
+    try {
+      const response = await fetch('/api/files/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: newPath,
+          content: '',
+          userId: user.id,
+          workspaceId: user.id
+        })
+      });
+      
+      if (response.ok) {
+        await loadFileTree();
+        setShowContextMenu(null);
+      }
+    } catch (error) {
+      console.error('Error creating file:', error);
+    }
   };
 
   const renderTree = (nodes: FileNode[], level = 0) => {
@@ -115,12 +206,35 @@ const FileExplorer = () => {
     ));
   };
 
+  if (loading) {
+    return (
+      <div className="h-full bg-slate-900 text-slate-300 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p className="text-sm text-slate-400">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full bg-slate-900 text-slate-300 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-slate-700">
-        <h2 className="text-sm font-semibold uppercase tracking-wide">Explorer</h2>
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide">Explorer</h2>
+          {user && (
+            <p className="text-xs text-slate-500 mt-1">Workspace: {user.email?.split('@')[0]}</p>
+          )}
+        </div>
         <div className="flex gap-1">
+          <button 
+            className="p-1 hover:bg-slate-800 rounded"
+            onClick={handleRefresh}
+            title="Refresh"
+          >
+            <RefreshCw size={18} />
+          </button>
           <button className="p-1 hover:bg-slate-800 rounded">
             <Plus size={18} />
           </button>
@@ -132,7 +246,25 @@ const FileExplorer = () => {
 
       {/* File tree */}
       <div className="flex-1 overflow-auto">
-        {renderTree(fileTree)}
+        {fileTree.length > 0 ? (
+          renderTree(fileTree)
+        ) : (
+          <div className="p-4 text-center text-slate-500">
+            <p className="text-sm">Your workspace is ready!</p>
+            <p className="text-xs mt-2">Use the terminal to:</p>
+            <ul className="text-xs mt-2 space-y-1">
+              <li>• Create files: <code className="bg-slate-800 px-1 rounded">touch file.txt</code></li>
+              <li>• Clone repos: <code className="bg-slate-800 px-1 rounded">git clone [url]</code></li>
+              <li>• Make directories: <code className="bg-slate-800 px-1 rounded">mkdir folder</code></li>
+            </ul>
+            <button 
+              onClick={handleRefresh}
+              className="mt-3 text-blue-400 hover:text-blue-300 text-xs"
+            >
+              Refresh to see changes
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Context menu */}
@@ -146,7 +278,10 @@ const FileExplorer = () => {
             className="absolute z-20 bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 min-w-[150px]"
             style={{ left: showContextMenu.x, top: showContextMenu.y }}
           >
-            <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-slate-700">
+            <button 
+              className="w-full px-3 py-1.5 text-left text-sm hover:bg-slate-700"
+              onClick={handleNewFile}
+            >
               New File
             </button>
             <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-slate-700">
