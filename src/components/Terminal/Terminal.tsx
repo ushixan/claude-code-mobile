@@ -20,6 +20,7 @@ const TerminalComponent = () => {
   const [showCopyButton, setShowCopyButton] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState('');
   const [showManualCopy, setShowManualCopy] = useState(false);
+  const [allTerminalContent, setAllTerminalContent] = useState('');
   const { setTerminalReady, currentWorkspace } = useStore();
   const { user } = useAuth();
 
@@ -177,15 +178,42 @@ const TerminalComponent = () => {
     });
 
     socket.on('terminal-output', (data: string) => {
+      // Write to terminal first - don't block
       term.write(data);
       
-      // Detect Claude Code URLs in the output
-      const claudeUrlPattern = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s]+/g;
-      const matches = data.match(claudeUrlPattern);
-      if (matches && matches[0]) {
-        console.log('Detected Claude Code URL:', matches[0]);
-        setDetectedUrl(matches[0]);
-      }
+      // Store all terminal content
+      setAllTerminalContent(prev => prev + data);
+      
+      // Detect Claude Code URLs in the output asynchronously
+      setTimeout(() => {
+        if (data.includes('claude.ai/oauth/authorize')) {
+          // Extract the URL more carefully
+          const lines = data.split('\n');
+          for (const line of lines) {
+            if (line.includes('https://claude.ai/oauth/authorize')) {
+              // Find the start and end of the URL
+              const urlStart = line.indexOf('https://claude.ai/oauth/authorize');
+              if (urlStart !== -1) {
+                // Find the end of the URL (space, newline, or end of string)
+                let urlEnd = line.length;
+                for (let i = urlStart; i < line.length; i++) {
+                  if (line[i] === ' ' || line[i] === '\r' || line[i] === '\n') {
+                    urlEnd = i;
+                    break;
+                  }
+                }
+                const url = line.substring(urlStart, urlEnd);
+                console.log('Detected Claude URL:', url);
+                setDetectedUrl(url);
+                
+                // Also show an alert immediately
+                alert('Claude Code URL detected! Look for the yellow box to copy it.');
+                break;
+              }
+            }
+          }
+        }
+      }, 100);
     });
     
     socket.on('terminal-error', (error: any) => {
@@ -450,80 +478,60 @@ const TerminalComponent = () => {
         onTap={focusTerminal}
       />
       
-      {/* Claude Code URL Detected - Big Copy Button */}
+      {/* Claude Code URL Detected - Simple and Visible */}
       {detectedUrl && (
-        <div className="absolute top-16 left-2 right-2 bg-blue-600 rounded-lg p-3 shadow-xl z-20">
-          <p className="text-white text-sm font-bold mb-2">🔗 Claude Code URL Detected!</p>
-          <div className="bg-slate-800 rounded p-2 mb-3">
-            <p className="text-green-400 text-xs break-all font-mono">{detectedUrl.substring(0, 60)}...</p>
-          </div>
+        <div className="fixed top-20 left-4 right-4 bg-yellow-500 rounded-lg p-4 shadow-2xl z-50 border-4 border-yellow-600">
+          <p className="text-black font-bold text-lg mb-3">⚠️ CLAUDE CODE URL DETECTED!</p>
+          
+          {/* Show URL in a text input for easy selection */}
+          <input
+            type="text"
+            value={detectedUrl}
+            readOnly
+            onClick={(e) => {
+              e.currentTarget.select();
+            }}
+            className="w-full p-2 mb-3 border-2 border-black rounded text-xs bg-white text-black font-mono"
+          />
+          
           <div className="flex flex-col gap-2">
+            {/* Simple copy button */}
             <button
               onClick={() => {
-                // Try multiple methods to copy
-                const copyToClipboard = async () => {
-                  try {
-                    // Method 1: Clipboard API
-                    await navigator.clipboard.writeText(detectedUrl);
-                    alert('✅ URL Copied Successfully!');
-                    return true;
-                  } catch (err) {
-                    console.log('Clipboard API failed, trying fallback...');
-                  }
-                  
-                  // Method 2: execCommand
-                  const input = document.createElement('input');
-                  input.style.position = 'fixed';
-                  input.style.opacity = '0';
-                  input.value = detectedUrl;
-                  document.body.appendChild(input);
+                const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+                if (input) {
                   input.select();
-                  input.setSelectionRange(0, 99999); // For mobile
-                  
                   try {
-                    const success = document.execCommand('copy');
-                    document.body.removeChild(input);
-                    if (success) {
-                      alert('✅ URL Copied Successfully!');
-                      return true;
-                    }
-                  } catch (err) {
-                    document.body.removeChild(input);
+                    document.execCommand('copy');
+                    alert('URL Copied! Paste it in your browser.');
+                  } catch (e) {
+                    alert('Select the URL above and copy it manually');
                   }
-                  
-                  // Method 3: Show manual copy dialog
-                  setShowManualCopy(true);
-                  return false;
-                };
-                
-                copyToClipboard();
+                }
               }}
-              className="bg-white text-blue-600 font-bold py-3 px-4 rounded-lg active:scale-95 text-center"
+              className="bg-black text-white font-bold py-3 px-4 rounded text-lg"
             >
-              📋 TAP TO COPY URL
+              COPY URL
             </button>
+            
+            {/* Open button */}
             <button
               onClick={() => {
                 window.open(detectedUrl, '_blank');
-                setDetectedUrl('');
               }}
-              className="bg-green-600 text-white font-bold py-3 px-4 rounded-lg active:scale-95 text-center"
+              className="bg-green-600 text-white font-bold py-3 px-4 rounded text-lg"
             >
-              🚀 OPEN IN BROWSER
+              OPEN IN BROWSER
             </button>
+            
+            {/* Close button */}
             <button
-              onClick={() => setShowManualCopy(true)}
-              className="bg-slate-700 text-white py-2 px-4 rounded-lg active:scale-95 text-center text-sm"
+              onClick={() => setDetectedUrl('')}
+              className="bg-red-600 text-white font-bold py-2 px-4 rounded"
             >
-              📝 Show Full URL to Copy Manually
+              CLOSE
             </button>
           </div>
-          <button
-            onClick={() => setDetectedUrl('')}
-            className="mt-2 text-white text-xs underline w-full text-center"
-          >
-            Dismiss
-          </button>
         </div>
       )}
       
@@ -616,6 +624,22 @@ const TerminalComponent = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           Paste
+        </button>
+        <button
+          onClick={() => {
+            // Search for Claude URL in all terminal content
+            const content = allTerminalContent || '';
+            const urlMatch = content.match(/https:\/\/claude\.ai\/oauth\/authorize\?[^\s\r\n]+/);
+            if (urlMatch) {
+              setDetectedUrl(urlMatch[0]);
+            } else {
+              alert('No Claude Code URL found. Run "claude" command first.');
+            }
+          }}
+          className="bg-orange-600 text-white px-2 py-1 rounded text-xs shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-1"
+          title="Find Claude Code URL"
+        >
+          🔍 Find URL
         </button>
       </div>
       
