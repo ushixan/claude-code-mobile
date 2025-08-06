@@ -14,6 +14,12 @@ interface OpenFile {
   language?: string;
 }
 
+interface TerminalSession {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface AppState {
   activeTab: 'terminal' | 'editor' | 'preview' | 'files';
   setActiveTab: (tab: AppState['activeTab']) => void;
@@ -33,6 +39,13 @@ interface AppState {
   
   terminalReady: boolean;
   setTerminalReady: (ready: boolean) => void;
+  
+  terminals: TerminalSession[];
+  activeTerminalId: string;
+  addTerminal: () => void;
+  removeTerminal: (id: string) => void;
+  setActiveTerminal: (id: string) => void;
+  renameTerminal: (id: string, name: string) => void;
   
   previewUrl: string;
   setPreviewUrl: (url: string) => void;
@@ -80,6 +93,44 @@ export const useStore = create<AppState>((set) => ({
   
   terminalReady: false,
   setTerminalReady: (ready) => set({ terminalReady: ready }),
+  
+  terminals: [{ id: '1', name: 'Terminal 1', isActive: true }],
+  activeTerminalId: '1',
+  addTerminal: () => set((state) => {
+    const newId = String(Date.now());
+    const newTerminal: TerminalSession = {
+      id: newId,
+      name: `Terminal ${state.terminals.length + 1}`,
+      isActive: false
+    };
+    return {
+      terminals: [...state.terminals, newTerminal],
+      activeTerminalId: newId
+    };
+  }),
+  removeTerminal: (id) => set((state) => {
+    const newTerminals = state.terminals.filter(t => t.id !== id);
+    if (newTerminals.length === 0) {
+      const defaultTerminal: TerminalSession = { id: '1', name: 'Terminal 1', isActive: true };
+      return {
+        terminals: [defaultTerminal],
+        activeTerminalId: '1'
+      };
+    }
+    const newActiveId = state.activeTerminalId === id 
+      ? newTerminals[newTerminals.length - 1].id 
+      : state.activeTerminalId;
+    return {
+      terminals: newTerminals,
+      activeTerminalId: newActiveId
+    };
+  }),
+  setActiveTerminal: (id) => set({ activeTerminalId: id }),
+  renameTerminal: (id, name) => set((state) => ({
+    terminals: state.terminals.map(t => 
+      t.id === id ? { ...t, name } : t
+    )
+  })),
   
   previewUrl: 'http://localhost:3000',
   setPreviewUrl: (url) => set({ previewUrl: url })

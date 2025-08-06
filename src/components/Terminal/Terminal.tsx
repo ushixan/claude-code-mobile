@@ -8,7 +8,11 @@ import { useStore } from '../../store/useStore';
 import { useAuth } from '../../contexts/AuthContext';
 import TouchControls from './TouchControls';
 
-const TerminalComponent = () => {
+interface TerminalProps {
+  terminalId?: string;
+}
+
+const TerminalComponent = ({ terminalId = '1' }: TerminalProps) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -23,8 +27,8 @@ const TerminalComponent = () => {
   const [allTerminalContent, setAllTerminalContent] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [terminalBuffer, setTerminalBuffer] = useState<string[]>(() => {
-    // Load saved terminal buffer from localStorage
-    const saved = localStorage.getItem('terminal-buffer');
+    // Load saved terminal buffer from localStorage for this specific terminal
+    const saved = localStorage.getItem(`terminal-buffer-${terminalId}`);
     return saved ? JSON.parse(saved) : [];
   });
   const { setTerminalReady, currentWorkspace } = useStore();
@@ -33,15 +37,20 @@ const TerminalComponent = () => {
   // Save terminal buffer to localStorage whenever it changes
   useEffect(() => {
     if (terminalBuffer.length > 0) {
-      localStorage.setItem('terminal-buffer', JSON.stringify(terminalBuffer));
+      localStorage.setItem(`terminal-buffer-${terminalId}`, JSON.stringify(terminalBuffer));
     }
-  }, [terminalBuffer]);
+  }, [terminalBuffer, terminalId]);
 
-  // Store terminal instance globally to prevent recreation
+  // Store terminal instance globally to prevent recreation, keyed by terminal ID
   useEffect(() => {
-    // Check if terminal already exists globally
-    if ((window as any).globalTerminal) {
-      xtermRef.current = (window as any).globalTerminal;
+    // Initialize global terminal storage if it doesn't exist
+    if (!(window as any).globalTerminals) {
+      (window as any).globalTerminals = {};
+    }
+    
+    // Check if terminal already exists globally for this ID
+    if ((window as any).globalTerminals[terminalId]) {
+      xtermRef.current = (window as any).globalTerminals[terminalId];
       const existingTerminal = xtermRef.current;
       
       // Reattach to DOM if needed
@@ -96,9 +105,8 @@ const TerminalComponent = () => {
     });
 
     xtermRef.current = term;
-    // Store terminal globally to persist across tab switches
-    (window as any).globalTerminal = term;
-    (window as any).xtermRef = xtermRef;
+    // Store terminal globally to persist across tab switches, keyed by ID
+    (window as any).globalTerminals[terminalId] = term;
 
     // Add addons
     const fitAddon = new FitAddon();
@@ -210,12 +218,16 @@ const TerminalComponent = () => {
       }
     });
 
-    // Check if socket already exists globally
+    // Check if socket already exists globally for this terminal
+    if (!(window as any).globalSockets) {
+      (window as any).globalSockets = {};
+    }
+    
     let socket: Socket;
-    if ((window as any).globalSocket && (window as any).globalSocket.connected) {
-      socket = (window as any).globalSocket;
+    if ((window as any).globalSockets[terminalId] && (window as any).globalSockets[terminalId].connected) {
+      socket = (window as any).globalSockets[terminalId];
       socketRef.current = socket;
-      console.log('Reusing existing socket connection');
+      console.log('Reusing existing socket connection for terminal', terminalId);
       return; // Socket already connected, don't recreate
     }
     
@@ -225,18 +237,19 @@ const TerminalComponent = () => {
     
     socket = io();
     socketRef.current = socket;
-    (window as any).globalSocket = socket;
+    (window as any).globalSockets[terminalId] = socket;
 
     socket.on('connect', () => {
       console.log('Connected to terminal server');
       setIsConnected(true);
       
-      // Create terminal session with user context
+      // Create terminal session with user context and terminal ID
       socket.emit('create-terminal', {
         cols: term.cols,
         rows: term.rows,
         userId: user?.id,
-        workspaceId: user?.id // Use user.id as workspaceId for simplicity
+        workspaceId: user?.id, // Use user.id as workspaceId for simplicity
+        terminalId: terminalId
       });
     });
 
@@ -365,7 +378,7 @@ const TerminalComponent = () => {
       // term.dispose();
       // setTerminalReady(false);
     };
-  }, [fontSize, setTerminalReady, user, currentWorkspace]);
+  }, [fontSize, setTerminalReady, user, currentWorkspace, terminalId]);
 
   // Pinch to zoom handler
   const handlePinch = (scale: number) => {
@@ -441,7 +454,7 @@ const TerminalComponent = () => {
       xtermRef.current.write('\x1b[2J\x1b[H'); // Clear screen and move cursor to top
       setTerminalBuffer([]);
       setAllTerminalContent('');
-      localStorage.removeItem('terminal-buffer');
+      localStorage.removeItem(`terminal-buffer-${terminalId}`);
       showCopyNotification('Terminal cleared!');
     }
   };

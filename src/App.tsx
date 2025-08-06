@@ -3,11 +3,12 @@ import { Terminal, Code, Globe, FolderOpen, LogOut } from 'lucide-react';
 import { useStore } from './store/useStore';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthForm from './components/Auth/AuthForm';
-import TerminalComponent from './components/Terminal/Terminal';
+import MultiTerminal from './components/Terminal/MultiTerminal';
 import EditorComponent from './components/Editor/Editor';
 import PreviewComponent from './components/Preview/Preview';
 import FileExplorerComponent from './components/FileExplorer/FileExplorer';
 import ArrowControls from './components/ArrowControls/ArrowControls';
+import SwipeableView from './components/MobileEnhancements/SwipeableView';
 
 function MainApp() {
   const { activeTab, setActiveTab } = useStore();
@@ -48,18 +49,20 @@ function MainApp() {
 
       {/* Main Content Area - Keep all components mounted but hidden */}
       <main className="flex-1 overflow-hidden relative">
-        <div className={`absolute inset-0 ${activeTab === 'terminal' ? 'block' : 'hidden'}`}>
-          <TerminalComponent />
-        </div>
-        <div className={`absolute inset-0 ${activeTab === 'editor' ? 'block' : 'hidden'}`}>
-          <EditorComponent />
-        </div>
-        <div className={`absolute inset-0 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
-          <PreviewComponent />
-        </div>
-        <div className={`absolute inset-0 ${activeTab === 'files' ? 'block' : 'hidden'}`}>
-          <FileExplorerComponent />
-        </div>
+        <SwipeableView>
+          <div className={`absolute inset-0 ${activeTab === 'terminal' ? 'block' : 'hidden'}`}>
+            <MultiTerminal />
+          </div>
+          <div className={`absolute inset-0 ${activeTab === 'editor' ? 'block' : 'hidden'}`}>
+            <EditorComponent />
+          </div>
+          <div className={`absolute inset-0 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
+            <PreviewComponent />
+          </div>
+          <div className={`absolute inset-0 ${activeTab === 'files' ? 'block' : 'hidden'}`}>
+            <FileExplorerComponent />
+          </div>
+        </SwipeableView>
       </main>
 
       {/* Arrow Controls */}

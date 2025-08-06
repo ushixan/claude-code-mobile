@@ -1,0 +1,178 @@
+/* Mobile-specific optimizations */
+
+/* Prevent iOS bounce scrolling */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for iOS Safari viewport height */
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Improved touch targets for mobile */
+@media (max-width: 768px) {
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better text selection on mobile */
+  .terminal-content {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* Optimize font sizes for mobile readability */
+  .text-xs {
+    font-size: 0.875rem;
+  }
+  
+  .text-sm {
+    font-size: 1rem;
+  }
+}
+
+/* Smooth animations for mobile */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-in {
+    animation: slideIn 0.2s ease-out;
+  }
+  
+  .slide-in-from-bottom-2 {
+    animation: slideUp 0.2s ease-out;
+  }
+  
+  .slide-in-from-bottom-4 {
+    animation: slideUpMore 0.3s ease-out;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpMore {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Custom scrollbar for mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 2px;
+  }
+}
+
+/* Safe area insets for notched devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Terminal optimizations for mobile */
+.xterm-screen {
+  touch-action: pan-y;
+}
+
+.xterm-viewport {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent zoom on input focus in iOS */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Landscape mode optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .bottom-nav {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  
+  header {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+}
+
+/* Fix for mobile keyboard pushing content up */
+@media (max-width: 768px) {
+  .keyboard-open {
+    height: calc(100vh - 260px);
+  }
+}
+
+/* Touch feedback */
+@media (hover: none) {
+  button:active {
+    transform: scale(0.95);
+  }
+  
+  .touchable {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* Performance optimizations */
+.hardware-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Swipe indicator styling */
+.swipe-indicator {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}

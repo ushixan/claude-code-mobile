@@ -379,9 +379,9 @@ app.get('/api/proxy', async (req, res) => {
   }
 });
 
-// Terminal sessions - organized by user
-const terminals = new Map(); // socketId -> terminalSession
-const userTerminals = new Map(); // userId -> Set of socketIds
+// Terminal sessions - organized by user and terminal ID
+const terminals = new Map(); // socketId:terminalId -> terminalSession
+const userTerminals = new Map(); // userId -> Map of terminalId -> socketId
 
 // Create a new terminal session
 io.on('connection', (socket) => {
@@ -389,7 +389,7 @@ io.on('connection', (socket) => {
   console.log('Total connected clients:', io.engine.clientsCount);
 
   socket.on('create-terminal', (data) => {
-    const { userId, workspaceId } = data;
+    const { userId, workspaceId, terminalId = '1' } = data;
     
     // For now, allow terminals without user auth for backward compatibility
     // In production, you'd want to verify the JWT token here
@@ -461,18 +461,20 @@ io.on('connection', (socket) => {
       term,
       userId,
       workspaceId,
+      terminalId,
       cwd,
       createdAt: new Date()
     };
 
-    terminals.set(socket.id, terminalSession);
+    const sessionKey = `${socket.id}:${terminalId}`;
+    terminals.set(sessionKey, terminalSession);
     
     // Track user terminals
     if (userId) {
       if (!userTerminals.has(userId)) {
-        userTerminals.set(userId, new Set());
+        userTerminals.set(userId, new Map());
       }
-      userTerminals.get(userId).add(socket.id);
+      userTerminals.get(userId).set(terminalId, socket.id);
     }
     
     term.on('data', (data) => {
@@ -505,7 +507,15 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
-      const session = terminals.get(socket.id);
+      // Find all terminals associated with this socket
+      const sessionsToDelete = [];
+      for (const [key, session] of terminals.entries()) {
+        if (key.startsWith(`${socket.id}:`)) {
+          sessionsToDelete.push({ key, session });
+        }
+      }
+      
+      sessionsToDelete.forEach(({ key, session }) => {
       if (session && session.term) {
         try {
           // Properly kill the terminal process
@@ -516,16 +526,18 @@ io.on('connection', (socket) => {
           console.error('Error killing terminal:', error.message);
         }
         
-        terminals.delete(socket.id);
+        terminals.delete(key);
         
         // Clean up user tracking
         if (session.userId && userTerminals.has(session.userId)) {
-          userTerminals.get(session.userId).delete(socket.id);
-          if (userTerminals.get(session.userId).size === 0) {
+          const userTerminalMap = userTerminals.get(session.userId);
+          userTerminalMap.delete(session.terminalId);
+          if (userTerminalMap.size === 0) {
             userTerminals.delete(session.userId);
           }
         }
-      }
+      });
+    })
     });
     
     // Send initial prompt
