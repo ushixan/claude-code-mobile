@@ -15,6 +15,11 @@ RUN apk add --no-cache \
 # Ensure bash is available at standard location
 RUN ln -sf /bin/bash /usr/bin/bash 2>/dev/null || true
 
+# Create a shell wrapper for cd command (Railway compatibility)
+RUN echo '#!/bin/sh' > /usr/local/bin/cd && \
+    echo 'builtin cd "$@"' >> /usr/local/bin/cd && \
+    chmod +x /usr/local/bin/cd
+
 WORKDIR /app
 
 # Copy package files
@@ -37,14 +42,11 @@ COPY . .
 # Build frontend
 RUN npm run build
 
-# Make start script executable
-RUN chmod +x /app/start.sh
-
 # Set production environment
 ENV NODE_ENV=production
 
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080
 
-# Use shell script to handle Railway's environment
-CMD ["/bin/sh", "/app/start.sh"]
+# Start the server directly
+CMD ["node", "server/index.js"]
