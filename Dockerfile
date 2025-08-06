@@ -29,9 +29,9 @@ COPY server/package*.json ./server/
 # Install root dependencies
 RUN npm install
 
-# Install server dependencies
+# Install server dependencies with rebuild for native modules
 WORKDIR /app/server
-RUN npm install
+RUN npm install && npm rebuild || true
 
 # Go back to app root
 WORKDIR /app

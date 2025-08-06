@@ -1,8 +1,20 @@
+console.log('Starting server initialization...');
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const pty = require('node-pty');
+
+// Try to load node-pty with error handling
+let pty;
+try {
+  pty = require('node-pty');
+  console.log('✅ node-pty loaded successfully');
+} catch (error) {
+  console.error('⚠️  Failed to load node-pty:', error.message);
+  console.log('Terminal features will be disabled');
+}
+
 const os = require('os');
 const path = require('path');
 const fs = require('fs').promises;
@@ -436,6 +448,9 @@ io.on('connection', (socket) => {
     
     let term;
     try {
+      if (!pty) {
+        throw new Error('node-pty is not available');
+      }
       term = pty.spawn(shell, [], {
         name: 'xterm-color',
         cols: data.cols || 80,
