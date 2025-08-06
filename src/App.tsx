@@ -46,13 +46,19 @@ function MainApp() {
         </button>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden">
-        <div className="h-full">
-          {activeTab === 'terminal' && <TerminalComponent />}
-          {activeTab === 'editor' && <EditorComponent />}
-          {activeTab === 'preview' && <PreviewComponent />}
-          {activeTab === 'files' && <FileExplorerComponent />}
+      {/* Main Content Area - Keep all components mounted but hidden */}
+      <main className="flex-1 overflow-hidden relative">
+        <div className={`absolute inset-0 ${activeTab === 'terminal' ? 'block' : 'hidden'}`}>
+          <TerminalComponent />
+        </div>
+        <div className={`absolute inset-0 ${activeTab === 'editor' ? 'block' : 'hidden'}`}>
+          <EditorComponent />
+        </div>
+        <div className={`absolute inset-0 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
+          <PreviewComponent />
+        </div>
+        <div className={`absolute inset-0 ${activeTab === 'files' ? 'block' : 'hidden'}`}>
+          <FileExplorerComponent />
         </div>
       </main>
 

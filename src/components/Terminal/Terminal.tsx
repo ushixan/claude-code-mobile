@@ -108,6 +108,13 @@ const TerminalComponent = () => {
       if (selection) {
         setSelectedText(selection);
         setShowCopyButton(true);
+        // Auto-copy on mobile when text is selected
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile && navigator.clipboard) {
+          navigator.clipboard.writeText(selection).catch(err => {
+            console.log('Auto-copy failed, manual copy required:', err);
+          });
+        }
       } else {
         setSelectedText('');
         setShowCopyButton(false);
@@ -220,35 +227,95 @@ const TerminalComponent = () => {
       try {
         await navigator.clipboard.writeText(selectedText);
         console.log('Text copied to clipboard');
-        // Clear selection and hide button
-        if (xtermRef.current) {
-          xtermRef.current.clearSelection();
-        }
+        // Show success feedback
         setShowCopyButton(false);
         setSelectedText('');
+        // Clear selection after a short delay
+        setTimeout(() => {
+          if (xtermRef.current) {
+            xtermRef.current.clearSelection();
+          }
+        }, 100);
       } catch (err) {
         console.error('Failed to copy text:', err);
-        // Fallback for older browsers
+        // Fallback for older browsers and mobile
         const textArea = document.createElement('textarea');
         textArea.value = selectedText;
         textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.width = '2em';
+        textArea.style.height = '2em';
+        textArea.style.padding = '0';
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
+        textArea.style.boxShadow = 'none';
+        textArea.style.background = 'transparent';
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
         try {
-          document.execCommand('copy');
-          console.log('Text copied using fallback method');
-          if (xtermRef.current) {
-            xtermRef.current.clearSelection();
+          const successful = document.execCommand('copy');
+          if (successful) {
+            console.log('Text copied using fallback method');
+            setShowCopyButton(false);
+            setSelectedText('');
+            setTimeout(() => {
+              if (xtermRef.current) {
+                xtermRef.current.clearSelection();
+              }
+            }, 100);
           }
-          setShowCopyButton(false);
-          setSelectedText('');
         } catch (err2) {
           console.error('Fallback copy failed:', err2);
         }
         document.body.removeChild(textArea);
       }
+    }
+  };
+  
+  // Handle paste action
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && xtermRef.current && socketRef.current?.connected) {
+        socketRef.current.emit('terminal-input', text);
+        xtermRef.current.focus();
+      }
+    } catch (err) {
+      console.error('Failed to paste:', err);
+      // Show a textarea for manual paste on mobile
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.style.position = 'fixed';
+      input.style.top = '50%';
+      input.style.left = '50%';
+      input.style.transform = 'translate(-50%, -50%)';
+      input.style.zIndex = '9999';
+      input.style.padding = '10px';
+      input.style.fontSize = '16px';
+      input.style.border = '2px solid #3b82f6';
+      input.style.borderRadius = '8px';
+      input.style.background = '#1e293b';
+      input.style.color = '#e2e8f0';
+      input.placeholder = 'Paste here and press Enter';
+      
+      const handleInputKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          const value = (e.target as HTMLInputElement).value;
+          if (value && xtermRef.current && socketRef.current?.connected) {
+            socketRef.current.emit('terminal-input', value);
+            xtermRef.current.focus();
+          }
+          document.body.removeChild(input);
+        } else if (e.key === 'Escape') {
+          document.body.removeChild(input);
+        }
+      };
+      
+      input.addEventListener('keydown', handleInputKeydown);
+      document.body.appendChild(input);
+      input.focus();
     }
   };
 
@@ -260,6 +327,10 @@ const TerminalComponent = () => {
         tabIndex={0}
         onClick={focusTerminal}
         onFocus={() => xtermRef.current?.focus()}
+        onContextMenu={(e) => {
+          // Enable context menu for easier copy/paste on mobile
+          e.stopPropagation();
+        }}
       />
       
       <TouchControls 
@@ -289,18 +360,29 @@ const TerminalComponent = () => {
         </div>
       )}
       
-      {/* Copy button */}
-      {showCopyButton && (
+      {/* Copy/Paste buttons */}
+      <div className="absolute top-2 left-2 flex gap-2 z-10">
+        {showCopyButton && (
+          <button
+            onClick={handleCopy}
+            className="bg-blue-600 text-white px-3 py-1 rounded text-sm shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Copy
+          </button>
+        )}
         <button
-          onClick={handleCopy}
-          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded text-sm shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-2 z-10"
+          onClick={handlePaste}
+          className="bg-green-600 text-white px-3 py-1 rounded text-sm shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          Copy
+          Paste
         </button>
-      )}
+      </div>
       
       {/* Floating keyboard button */}
       <button

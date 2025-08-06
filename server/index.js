@@ -87,7 +87,134 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-// Proxy endpoint to bypass X-Frame-Options
+// Simple proxy endpoint - just removes headers
+app.get('/api/simple-proxy', async (req, res) => {
+  const targetUrl = req.query.url;
+  
+  if (!targetUrl) {
+    return res.status(400).send('URL parameter is required');
+  }
+  
+  try {
+    const response = await fetch(targetUrl);
+    const content = await response.text();
+    
+    // Remove all blocking headers
+    res.removeHeader('X-Frame-Options');
+    res.removeHeader('Content-Security-Policy');
+    res.set('Content-Type', response.headers.get('content-type') || 'text/html');
+    
+    res.send(content);
+  } catch (error) {
+    console.error('Simple proxy error:', error);
+    res.status(500).send('Proxy error');
+  }
+});
+
+// Screenshot/render endpoint for stubborn sites
+app.get('/api/render', async (req, res) => {
+  const targetUrl = req.query.url;
+  
+  if (!targetUrl) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+  
+  try {
+    // For now, return a simple HTML page that explains the limitation
+    // In production, you would use Puppeteer or Playwright here
+    const renderHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Preview: ${targetUrl}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+          }
+          .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: center;
+          }
+          h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+          }
+          .url {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            word-break: break-all;
+            margin: 20px 0;
+            font-size: 14px;
+          }
+          .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+          }
+          .button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+          }
+          .button:hover {
+            transform: scale(1.05);
+          }
+          .info {
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🔒 This site cannot be embedded</h1>
+          <p>The website you're trying to view has security restrictions that prevent it from being displayed in an iframe.</p>
+          <div class="url">${targetUrl}</div>
+          <div class="buttons">
+            <a href="${targetUrl}" target="_blank" class="button">Open in New Tab</a>
+          </div>
+          <div class="info">
+            <p>💡 Pro tip: You can still browse this site by opening it in a new tab. Your terminal and editor will remain accessible in other tabs.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    res.set('Content-Type', 'text/html');
+    res.send(renderHtml);
+  } catch (error) {
+    console.error('Render error:', error);
+    res.status(500).json({ error: 'Failed to render page' });
+  }
+});
+
+// Comprehensive proxy endpoint to bypass X-Frame-Options
 app.get('/api/proxy', async (req, res) => {
   console.log('Proxy request received:', req.url);
   console.log('Query params:', req.query);
@@ -101,36 +228,88 @@ app.get('/api/proxy', async (req, res) => {
   }
   
   try {
-    // Validate URL
-    const url = new URL(targetUrl);
+    // Validate and fix URL
+    let url;
+    try {
+      url = new URL(targetUrl);
+    } catch (e) {
+      // Try adding https:// if no protocol
+      try {
+        url = new URL('https://' + targetUrl);
+      } catch (e2) {
+        return res.status(400).json({ error: 'Invalid URL format' });
+      }
+    }
+    
     if (!['http:', 'https:'].includes(url.protocol)) {
       return res.status(400).json({ error: 'Invalid URL protocol' });
     }
     
-    console.log('Proxying request to:', targetUrl);
+    console.log('Proxying request to:', url.href);
     
-    // Fetch the target page with more realistic headers
-    const response = await fetch(targetUrl, {
+    // Fetch the target page with mobile user agent for better compatibility
+    const response = await fetch(url.href, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
         'Cache-Control': 'max-age=0'
-      }
+      },
+      redirect: 'follow'
     });
     
     console.log('Proxy response status:', response.status, response.statusText);
     
     if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: `Failed to fetch: ${response.status} ${response.statusText}` 
-      });
+      // Return a proper error page instead of JSON for iframe
+      const errorHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Error ${response.status}</title>
+          <style>
+            body {
+              font-family: -apple-system, system-ui, sans-serif;
+              background: #1e293b;
+              color: #e2e8f0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              text-align: center;
+            }
+            .error { 
+              padding: 20px;
+            }
+            h1 { color: #f87171; }
+            a {
+              color: #60a5fa;
+              text-decoration: none;
+              display: inline-block;
+              margin-top: 20px;
+              padding: 10px 20px;
+              background: #334155;
+              border-radius: 6px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="error">
+            <h1>Error ${response.status}</h1>
+            <p>${response.statusText}</p>
+            <p>Failed to load: ${url.hostname}</p>
+            <a href="${url.href}" target="_blank">Open in new tab →</a>
+          </div>
+        </body>
+        </html>
+      `;
+      return res.status(200).set('Content-Type', 'text/html').send(errorHtml);
     }
     
     const contentType = response.headers.get('content-type') || 'text/html';
@@ -138,74 +317,41 @@ app.get('/api/proxy', async (req, res) => {
     
     // If it's HTML, modify it to work in iframe
     if (contentType.includes('text/html')) {
-      const wsUrl = req.get('host');
-      const proxyPath = '/api/proxy?url=';
+      // Simple but effective approach - inject a base tag and remove blocking scripts
       
-      // Rewrite all absolute URLs to go through our proxy
-      content = content.replace(/https?:\/\/[^"'\s)]+/g, (match) => {
-        // Skip if it's already a proxy URL or a data URL
-        if (match.includes(proxyPath) || match.startsWith('data:')) {
-          return match;
-        }
-        // Convert to proxy URL
-        return `http://${wsUrl}${proxyPath}${encodeURIComponent(match)}`;
-      });
+      // Add base tag for relative URLs
+      const baseTag = `<base href="${url.origin}/" target="_self">`;
+      if (!content.includes('<base')) {
+        content = content.replace(/<head[^>]*>/i, `$&${baseTag}`);
+      }
       
-      // Rewrite form actions to go through proxy
-      content = content.replace(/action=["']([^"']+)["']/gi, (match, action) => {
-        if (action.startsWith('http')) {
-          return `action="http://${wsUrl}${proxyPath}${encodeURIComponent(action)}"`;
-        } else if (action.startsWith('/')) {
-          return `action="http://${wsUrl}${proxyPath}${encodeURIComponent(url.origin + action)}"`;
-        }
-        return match;
-      });
+      // Remove common frame-busting code
+      content = content.replace(/if\s*\(\s*top\s*!==?\s*self\s*\)/gi, 'if(false)');
+      content = content.replace(/if\s*\(\s*self\s*!==?\s*top\s*\)/gi, 'if(false)');
+      content = content.replace(/if\s*\(\s*window\s*!==?\s*window\.top\s*\)/gi, 'if(false)');
+      content = content.replace(/if\s*\(\s*parent\s*!==?\s*window\s*\)/gi, 'if(false)');
+      content = content.replace(/top\.location/gi, 'window.location');
+      content = content.replace(/window\.top\.location/gi, 'window.location');
       
-      // Add base tag to fix remaining relative URLs
-      const baseTag = `<base href="http://${wsUrl}${proxyPath}${encodeURIComponent(url.origin + '/')}">`;
-      content = content.replace(/<head>/i, `<head>${baseTag}`);
+      // Remove X-Frame-Options meta tags
+      content = content.replace(/<meta[^>]*http-equiv=["']X-Frame-Options["'][^>]*>/gi, '');
       
-      // Remove frame-busting scripts
-      content = content.replace(/if\s*\(\s*top\s*[!=]==?\s*self\s*\)/gi, 'if(false)');
-      content = content.replace(/if\s*\(\s*self\s*[!=]==?\s*top\s*\)/gi, 'if(false)');
-      content = content.replace(/if\s*\(\s*window\s*[!=]==?\s*window\.top\s*\)/gi, 'if(false)');
-      
-      // Inject navigation interceptor script
-      const navigationScript = `
-        <script>
-          // Intercept navigation and redirect through proxy
-          document.addEventListener('DOMContentLoaded', function() {
-            // Intercept all link clicks
-            document.addEventListener('click', function(e) {
-              const link = e.target.closest('a');
-              if (link && link.href && !link.href.includes('${proxyPath}')) {
-                e.preventDefault();
-                const proxyUrl = 'http://${wsUrl}${proxyPath}' + encodeURIComponent(link.href);
-                window.location.href = proxyUrl;
-              }
-            });
-            
-            // Intercept form submissions
-            document.addEventListener('submit', function(e) {
-              const form = e.target;
-              if (form.action && !form.action.includes('${proxyPath}')) {
-                const actionUrl = form.action.startsWith('http') ? form.action : '${url.origin}' + form.action;
-                form.action = 'http://${wsUrl}${proxyPath}' + encodeURIComponent(actionUrl);
-              }
-            });
-          });
-        </script>
+      // Add a simple CSS fix for better mobile viewing
+      const mobileStyles = `
+        <style>
+          @media (max-width: 768px) {
+            body { 
+              -webkit-text-size-adjust: 100%;
+              overflow-x: auto !important;
+            }
+            * {
+              max-width: 100vw !important;
+              word-wrap: break-word !important;
+            }
+          }
+        </style>
       `;
-      content = content.replace(/<\/head>/i, `${navigationScript}</head>`);
-      
-      // Add proxy indicator
-      const indicator = `
-        <div style="position: fixed; top: 0; left: 0; right: 0; background: rgba(59, 130, 246, 0.9); color: white; text-align: center; padding: 2px 8px; font-size: 12px; z-index: 999999; font-family: system-ui;">
-          📱 Viewing via Mobile Terminal IDE Proxy - Navigation enabled
-        </div>
-        <div style="height: 24px;"></div>
-      `;
-      content = content.replace(/<body[^>]*>/i, `$&${indicator}`);
+      content = content.replace(/<\/head>/i, `${mobileStyles}</head>`);
     }
     
     // Set appropriate headers, removing frame-blocking ones
