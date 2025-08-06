@@ -72,6 +72,13 @@ const TerminalComponent = () => {
     setTimeout(() => {
       term.focus();
     }, 100);
+    
+    // Ensure arrow keys and other special keys work properly
+    term.attachCustomKeyEventHandler(() => {
+      // Allow all key events to be processed by the terminal
+      // This ensures arrow keys work for navigation in Claude Code menus
+      return true;
+    });
 
     // Connect to WebSocket server - Vite proxy will handle routing in development
     console.log('Connecting to WebSocket via current origin');
@@ -121,7 +128,7 @@ const TerminalComponent = () => {
       term.write('\r\n\x1b[31mConnection error: ' + error.message + '\x1b[0m\r\n');
     });
 
-    // Handle terminal input
+    // Handle terminal input - pass all data directly to the server
     term.onData(data => {
       if (socket.connected) {
         socket.emit('terminal-input', data);
