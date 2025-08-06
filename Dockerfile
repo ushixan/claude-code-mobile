@@ -43,11 +43,5 @@ ENV NODE_ENV=production
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080
 
-# Install wget for health check
-RUN apk add --no-cache wget
-
-# Ensure we're in the right directory
-WORKDIR /app
-
-# Start the server directly with node
+# Start the server directly with node - no shell, no scripts
 CMD ["node", "server/index.js"]
