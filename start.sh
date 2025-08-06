@@ -8,10 +8,7 @@ echo "NODE_ENV: ${NODE_ENV:-production}"
 echo "Working Directory: $(pwd)"
 echo "========================================="
 
-# Ensure we're in the right directory
-cd /app || exit 1
-
-# Check if the build exists
+# Check if the build exists (we're already in /app from WORKDIR)
 if [ ! -d "dist" ]; then
   echo "ERROR: dist directory not found!"
   echo "Running build..."

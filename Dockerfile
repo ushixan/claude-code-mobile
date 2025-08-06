@@ -46,12 +46,8 @@ EXPOSE 8080
 # Install wget for health check
 RUN apk add --no-cache wget
 
-# Copy start script
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
 # Ensure we're in the right directory
 WORKDIR /app
 
-# Start the server using the start script
-CMD ["/app/start.sh"]
+# Start the server directly with node
+CMD ["node", "server/index.js"]
