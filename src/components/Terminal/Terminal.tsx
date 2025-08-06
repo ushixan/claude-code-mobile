@@ -21,10 +21,44 @@ const TerminalComponent = () => {
   const [detectedUrl, setDetectedUrl] = useState('');
   const [showManualCopy, setShowManualCopy] = useState(false);
   const [allTerminalContent, setAllTerminalContent] = useState('');
+  const [terminalBuffer, setTerminalBuffer] = useState<string[]>(() => {
+    // Load saved terminal buffer from localStorage
+    const saved = localStorage.getItem('terminal-buffer');
+    return saved ? JSON.parse(saved) : [];
+  });
   const { setTerminalReady, currentWorkspace } = useStore();
   const { user } = useAuth();
-
+  
+  // Save terminal buffer to localStorage whenever it changes
   useEffect(() => {
+    if (terminalBuffer.length > 0) {
+      localStorage.setItem('terminal-buffer', JSON.stringify(terminalBuffer));
+    }
+  }, [terminalBuffer]);
+
+  // Store terminal instance globally to prevent recreation
+  useEffect(() => {
+    // Check if terminal already exists globally
+    if ((window as any).globalTerminal) {
+      xtermRef.current = (window as any).globalTerminal;
+      const existingTerminal = xtermRef.current;
+      
+      // Reattach to DOM if needed
+      if (terminalRef.current && !terminalRef.current.hasChildNodes()) {
+        existingTerminal.open(terminalRef.current);
+        if (fitAddonRef.current) {
+          fitAddonRef.current.fit();
+        }
+      }
+      
+      // Terminal already exists, just refocus
+      setTimeout(() => {
+        existingTerminal.focus();
+      }, 100);
+      
+      return; // Don't recreate terminal
+    }
+    
     if (!terminalRef.current) return;
 
     // Initialize terminal
@@ -60,7 +94,8 @@ const TerminalComponent = () => {
     });
 
     xtermRef.current = term;
-    // Expose terminal instance globally for arrow controls
+    // Store terminal globally to persist across tab switches
+    (window as any).globalTerminal = term;
     (window as any).xtermRef = xtermRef;
 
     // Add addons
@@ -105,6 +140,14 @@ const TerminalComponent = () => {
     // Open terminal
     term.open(terminalRef.current);
     fitAddon.fit();
+    
+    // Restore saved terminal buffer
+    if (terminalBuffer.length > 0) {
+      console.log('Restoring terminal buffer with', terminalBuffer.length, 'lines');
+      terminalBuffer.forEach(line => {
+        term.write(line);
+      });
+    }
     
     // Focus the terminal so it can receive keyboard input
     setTimeout(() => {
@@ -151,12 +194,22 @@ const TerminalComponent = () => {
       }
     });
 
+    // Check if socket already exists globally
+    let socket: Socket;
+    if ((window as any).globalSocket && (window as any).globalSocket.connected) {
+      socket = (window as any).globalSocket;
+      socketRef.current = socket;
+      console.log('Reusing existing socket connection');
+      return; // Socket already connected, don't recreate
+    }
+    
     // Connect to WebSocket server - Vite proxy will handle routing in development
     console.log('Connecting to WebSocket via current origin');
     console.log('Current location:', window.location.href);
     
-    const socket = io();
+    socket = io();
     socketRef.current = socket;
+    (window as any).globalSocket = socket;
 
     socket.on('connect', () => {
       console.log('Connected to terminal server');
@@ -180,6 +233,16 @@ const TerminalComponent = () => {
     socket.on('terminal-output', (data: string) => {
       // Write to terminal first - don't block
       term.write(data);
+      
+      // Save to buffer for persistence
+      setTerminalBuffer(prev => {
+        const newBuffer = [...prev, data];
+        // Limit buffer size to prevent localStorage overflow (keep last 1000 entries)
+        if (newBuffer.length > 1000) {
+          return newBuffer.slice(-1000);
+        }
+        return newBuffer;
+      });
       
       // Store all terminal content
       setAllTerminalContent(prev => prev + data);
@@ -238,6 +301,15 @@ const TerminalComponent = () => {
     term.onData(data => {
       if (socket.connected) {
         socket.emit('terminal-input', data);
+        
+        // Also save user input to buffer for persistence
+        setTerminalBuffer(prev => {
+          const newBuffer = [...prev, data];
+          if (newBuffer.length > 1000) {
+            return newBuffer.slice(-1000);
+          }
+          return newBuffer;
+        });
       }
     });
 
@@ -258,9 +330,10 @@ const TerminalComponent = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      socket.disconnect();
-      term.dispose();
-      setTerminalReady(false);
+      // Don't dispose terminal - keep it alive for tab switching
+      // socket.disconnect();
+      // term.dispose();
+      // setTerminalReady(false);
     };
   }, [fontSize, setTerminalReady, user, currentWorkspace]);
 
@@ -328,6 +401,18 @@ const TerminalComponent = () => {
       } catch (err2) {
         console.error('Fallback copy all failed:', err2);
       }
+    }
+  };
+
+  // Clear terminal
+  const clearTerminal = () => {
+    if (xtermRef.current) {
+      xtermRef.current.clear();
+      xtermRef.current.write('\x1b[2J\x1b[H'); // Clear screen and move cursor to top
+      setTerminalBuffer([]);
+      setAllTerminalContent('');
+      localStorage.removeItem('terminal-buffer');
+      showCopyNotification('Terminal cleared!');
     }
   };
 
@@ -586,12 +671,21 @@ const TerminalComponent = () => {
         </div>
       )}
 
-      {/* Connection status */}
-      {!isConnected && (
-        <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs">
-          Disconnected
-        </div>
-      )}
+      {/* Connection status and Clear button */}
+      <div className="absolute top-2 right-2 flex gap-2 z-10">
+        <button
+          onClick={clearTerminal}
+          className="bg-red-600 text-white px-2 py-1 rounded text-xs shadow-lg active:scale-95 transition-all duration-150"
+          title="Clear terminal"
+        >
+          Clear
+        </button>
+        {!isConnected && (
+          <div className="bg-red-600 text-white px-2 py-1 rounded text-xs">
+            Disconnected
+          </div>
+        )}
+      </div>
       
       {/* Copy/Paste buttons */}
       <div className="absolute top-2 left-2 flex gap-2 z-10">
