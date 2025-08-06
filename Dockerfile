@@ -44,4 +44,5 @@ ENV NODE_ENV=production
 EXPOSE 8080
 
 # Start the server directly with node - no shell, no scripts
-CMD ["node", "server/index.js"]
+# Using ENTRYPOINT to prevent Railway from overriding the command
+ENTRYPOINT ["node", "server/index.js"]
