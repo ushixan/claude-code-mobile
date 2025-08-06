@@ -42,10 +42,45 @@ body {
   height: 100%;
   width: 100%;
   touch-action: pan-y;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
 }
 
 .xterm-viewport {
   -webkit-overflow-scrolling: touch;
+}
+
+/* Better text selection for terminal */
+.xterm-screen {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.xterm-rows {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Make links more visible and clickable */
+.xterm a {
+  color: #60a5fa !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+}
+
+/* Touch-friendly selection */
+.xterm-selection {
+  background-color: rgba(96, 165, 250, 0.4) !important;
+}
+
+/* Copy notification animation */
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
 }
 
 /* CodeMirror mobile optimizations */
@@ -58,6 +93,12 @@ body {
 @media (max-width: 768px) {
   .cm-editor {
     font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  /* Better touch selection for terminal */
+  .xterm {
+    -webkit-touch-callout: default !important;
+    -webkit-tap-highlight-color: rgba(96, 165, 250, 0.3);
   }
   
   /* Hide scrollbars on mobile */

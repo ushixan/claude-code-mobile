@@ -66,8 +66,35 @@ const TerminalComponent = () => {
     term.loadAddon(fitAddon);
     
     const webLinksAddon = new WebLinksAddon((event, uri) => {
-      // Open links in a new tab/window
+      // Copy URL to clipboard and open in new tab
       event.preventDefault();
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(uri).then(() => {
+        console.log('URL copied to clipboard:', uri);
+        // Show visual feedback
+        const notification = document.createElement('div');
+        notification.textContent = '✅ URL copied!';
+        notification.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: #10b981;
+          color: white;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-size: 16px;
+          z-index: 10000;
+          animation: fadeInOut 2s ease-in-out;
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => document.body.removeChild(notification), 2000);
+      }).catch(err => {
+        console.error('Failed to copy URL:', err);
+      });
+      
+      // Open in new tab
       window.open(uri, '_blank', 'noopener,noreferrer');
     });
     term.loadAddon(webLinksAddon);
@@ -207,6 +234,65 @@ const TerminalComponent = () => {
     });
   };
 
+  // Show copy notification
+  const showCopyNotification = (message: string) => {
+    const notification = document.createElement('div');
+    notification.textContent = `✅ ${message}`;
+    notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #10b981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => document.body.removeChild(notification), 2000);
+  };
+
+  // Copy all terminal content
+  const handleCopyAll = async () => {
+    if (!xtermRef.current) return;
+    
+    try {
+      // Select all content
+      xtermRef.current.selectAll();
+      const allText = xtermRef.current.getSelection();
+      
+      if (allText) {
+        await navigator.clipboard.writeText(allText);
+        showCopyNotification('All terminal content copied!');
+        // Clear selection after copying
+        setTimeout(() => {
+          xtermRef.current?.clearSelection();
+        }, 100);
+      }
+    } catch (err) {
+      console.error('Failed to copy all:', err);
+      // Try fallback method
+      const buffer = xtermRef.current.buffer.active;
+      let content = '';
+      for (let i = 0; i < buffer.length; i++) {
+        const line = buffer.getLine(i);
+        if (line) {
+          content += line.translateToString(true) + '\n';
+        }
+      }
+      
+      try {
+        await navigator.clipboard.writeText(content);
+        showCopyNotification('All terminal content copied!');
+      } catch (err2) {
+        console.error('Fallback copy all failed:', err2);
+      }
+    }
+  };
+
   // Focus terminal for keyboard input
   const focusTerminal = () => {
     if (!xtermRef.current) return;
@@ -228,6 +314,7 @@ const TerminalComponent = () => {
         await navigator.clipboard.writeText(selectedText);
         console.log('Text copied to clipboard');
         // Show success feedback
+        showCopyNotification('Text copied!');
         setShowCopyButton(false);
         setSelectedText('');
         // Clear selection after a short delay
@@ -365,19 +452,29 @@ const TerminalComponent = () => {
         {showCopyButton && (
           <button
             onClick={handleCopy}
-            className="bg-blue-600 text-white px-3 py-1 rounded text-sm shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-2"
+            className="bg-blue-600 text-white px-2 py-1 rounded text-xs shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-1"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
             Copy
           </button>
         )}
         <button
-          onClick={handlePaste}
-          className="bg-green-600 text-white px-3 py-1 rounded text-sm shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-2"
+          onClick={handleCopyAll}
+          className="bg-purple-600 text-white px-2 py-1 rounded text-xs shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-1"
+          title="Copy all terminal content"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+          </svg>
+          Copy All
+        </button>
+        <button
+          onClick={handlePaste}
+          className="bg-green-600 text-white px-2 py-1 rounded text-xs shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-1"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           Paste
