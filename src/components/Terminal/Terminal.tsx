@@ -18,6 +18,8 @@ const TerminalComponent = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [showCopyButton, setShowCopyButton] = useState(false);
+  const [detectedUrl, setDetectedUrl] = useState('');
+  const [showManualCopy, setShowManualCopy] = useState(false);
   const { setTerminalReady, currentWorkspace } = useStore();
   const { user } = useAuth();
 
@@ -176,6 +178,14 @@ const TerminalComponent = () => {
 
     socket.on('terminal-output', (data: string) => {
       term.write(data);
+      
+      // Detect Claude Code URLs in the output
+      const claudeUrlPattern = /https:\/\/claude\.ai\/oauth\/authorize\?[^\s]+/g;
+      const matches = data.match(claudeUrlPattern);
+      if (matches && matches[0]) {
+        console.log('Detected Claude Code URL:', matches[0]);
+        setDetectedUrl(matches[0]);
+      }
     });
     
     socket.on('terminal-error', (error: any) => {
@@ -440,6 +450,134 @@ const TerminalComponent = () => {
         onTap={focusTerminal}
       />
       
+      {/* Claude Code URL Detected - Big Copy Button */}
+      {detectedUrl && (
+        <div className="absolute top-16 left-2 right-2 bg-blue-600 rounded-lg p-3 shadow-xl z-20">
+          <p className="text-white text-sm font-bold mb-2">🔗 Claude Code URL Detected!</p>
+          <div className="bg-slate-800 rounded p-2 mb-3">
+            <p className="text-green-400 text-xs break-all font-mono">{detectedUrl.substring(0, 60)}...</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                // Try multiple methods to copy
+                const copyToClipboard = async () => {
+                  try {
+                    // Method 1: Clipboard API
+                    await navigator.clipboard.writeText(detectedUrl);
+                    alert('✅ URL Copied Successfully!');
+                    return true;
+                  } catch (err) {
+                    console.log('Clipboard API failed, trying fallback...');
+                  }
+                  
+                  // Method 2: execCommand
+                  const input = document.createElement('input');
+                  input.style.position = 'fixed';
+                  input.style.opacity = '0';
+                  input.value = detectedUrl;
+                  document.body.appendChild(input);
+                  input.select();
+                  input.setSelectionRange(0, 99999); // For mobile
+                  
+                  try {
+                    const success = document.execCommand('copy');
+                    document.body.removeChild(input);
+                    if (success) {
+                      alert('✅ URL Copied Successfully!');
+                      return true;
+                    }
+                  } catch (err) {
+                    document.body.removeChild(input);
+                  }
+                  
+                  // Method 3: Show manual copy dialog
+                  setShowManualCopy(true);
+                  return false;
+                };
+                
+                copyToClipboard();
+              }}
+              className="bg-white text-blue-600 font-bold py-3 px-4 rounded-lg active:scale-95 text-center"
+            >
+              📋 TAP TO COPY URL
+            </button>
+            <button
+              onClick={() => {
+                window.open(detectedUrl, '_blank');
+                setDetectedUrl('');
+              }}
+              className="bg-green-600 text-white font-bold py-3 px-4 rounded-lg active:scale-95 text-center"
+            >
+              🚀 OPEN IN BROWSER
+            </button>
+            <button
+              onClick={() => setShowManualCopy(true)}
+              className="bg-slate-700 text-white py-2 px-4 rounded-lg active:scale-95 text-center text-sm"
+            >
+              📝 Show Full URL to Copy Manually
+            </button>
+          </div>
+          <button
+            onClick={() => setDetectedUrl('')}
+            className="mt-2 text-white text-xs underline w-full text-center"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      
+      {/* Manual Copy Dialog */}
+      {showManualCopy && detectedUrl && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 max-w-full w-full">
+            <h3 className="text-black font-bold mb-2">Copy this URL:</h3>
+            <textarea
+              readOnly
+              value={detectedUrl}
+              className="w-full h-32 p-2 border border-gray-300 rounded text-xs font-mono text-black bg-gray-50"
+              onClick={(e) => {
+                e.currentTarget.select();
+                e.currentTarget.setSelectionRange(0, 99999);
+              }}
+            />
+            <p className="text-gray-600 text-xs mt-2 mb-3">
+              Tap the text above, select all, and copy it manually
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  // One more attempt to copy
+                  const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+                  if (textarea) {
+                    textarea.select();
+                    textarea.setSelectionRange(0, 99999);
+                    try {
+                      document.execCommand('copy');
+                      alert('Copied!');
+                    } catch (e) {
+                      alert('Please copy manually by selecting the text');
+                    }
+                  }
+                }}
+                className="flex-1 bg-blue-600 text-white py-2 rounded font-bold"
+              >
+                Try Copy Again
+              </button>
+              <button
+                onClick={() => {
+                  setShowManualCopy(false);
+                  setDetectedUrl('');
+                }}
+                className="flex-1 bg-gray-600 text-white py-2 rounded font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Connection status */}
       {!isConnected && (
         <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs">
