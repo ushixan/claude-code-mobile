@@ -5,14 +5,20 @@ import { python } from '@codemirror/lang-python';
 import { useStore } from '../../store/useStore';
 import { useAuth } from '../../contexts/AuthContext';
 import { X, Save } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 
 const Editor = () => {
   const { openFiles, activeFile, closeFile, setActiveFile, updateFileContent, currentWorkspace } = useStore();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const editorRef = useRef<any>(null);
   
   const activeFileData = openFiles.find(f => f.path === activeFile);
+  
+  // Expose editor instance globally for arrow controls
+  useEffect(() => {
+    (window as any).codeMirrorRef = editorRef;
+  }, []);
 
   const handleChange = useCallback((value: string) => {
     if (activeFile) {
@@ -99,6 +105,7 @@ const Editor = () => {
       {activeFileData && (
         <div className="flex-1 overflow-hidden">
           <CodeMirror
+            ref={editorRef}
             value={activeFileData.content}
             height="100%"
             theme={oneDark}

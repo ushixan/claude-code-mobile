@@ -16,6 +16,8 @@ const TerminalComponent = () => {
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [fontSize, setFontSize] = useState(window.innerWidth < 768 ? 12 : 14);
   const [isConnected, setIsConnected] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [showCopyButton, setShowCopyButton] = useState(false);
   const { setTerminalReady, currentWorkspace } = useStore();
   const { user } = useAuth();
 
@@ -52,16 +54,25 @@ const TerminalComponent = () => {
       allowProposedApi: true,
       // Mobile optimizations
       scrollOnUserInput: true,
+      // Enable selection for copy
+      selectionBackground: '#4a5568',
+      selectionForeground: '#ffffff',
     });
 
     xtermRef.current = term;
+    // Expose terminal instance globally for arrow controls
+    (window as any).xtermRef = xtermRef;
 
     // Add addons
     const fitAddon = new FitAddon();
     fitAddonRef.current = fitAddon;
     term.loadAddon(fitAddon);
     
-    const webLinksAddon = new WebLinksAddon();
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+      // Open links in a new tab/window
+      event.preventDefault();
+      window.open(uri, '_blank', 'noopener,noreferrer');
+    });
     term.loadAddon(webLinksAddon);
 
     // Open terminal
@@ -74,10 +85,36 @@ const TerminalComponent = () => {
     }, 100);
     
     // Ensure arrow keys and other special keys work properly
-    term.attachCustomKeyEventHandler(() => {
-      // Allow all key events to be processed by the terminal
-      // This ensures arrow keys work for navigation in Claude Code menus
+    term.attachCustomKeyEventHandler((event) => {
+      // Handle copy with Ctrl+C or Cmd+C when there's a selection
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c' && term.hasSelection()) {
+        const selection = term.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection).then(() => {
+            console.log('Text copied to clipboard');
+            // Clear selection after copy
+            term.clearSelection();
+          }).catch(err => {
+            console.error('Failed to copy text:', err);
+          });
+        }
+        return false; // Prevent default only for copy when text is selected
+      }
+      
+      // Allow all other key events to be processed by the terminal
       return true;
+    });
+    
+    // Handle selection changes for mobile copy
+    term.onSelectionChange(() => {
+      const selection = term.getSelection();
+      if (selection) {
+        setSelectedText(selection);
+        setShowCopyButton(true);
+      } else {
+        setSelectedText('');
+        setShowCopyButton(false);
+      }
     });
 
     // Connect to WebSocket server - Vite proxy will handle routing in development
@@ -179,6 +216,44 @@ const TerminalComponent = () => {
       setShowKeyboard(!showKeyboard);
     }
   };
+  
+  // Handle copy action
+  const handleCopy = async () => {
+    if (selectedText) {
+      try {
+        await navigator.clipboard.writeText(selectedText);
+        console.log('Text copied to clipboard');
+        // Clear selection and hide button
+        if (xtermRef.current) {
+          xtermRef.current.clearSelection();
+        }
+        setShowCopyButton(false);
+        setSelectedText('');
+      } catch (err) {
+        console.error('Failed to copy text:', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = selectedText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          console.log('Text copied using fallback method');
+          if (xtermRef.current) {
+            xtermRef.current.clearSelection();
+          }
+          setShowCopyButton(false);
+          setSelectedText('');
+        } catch (err2) {
+          console.error('Fallback copy failed:', err2);
+        }
+        document.body.removeChild(textArea);
+      }
+    }
+  };
 
   return (
     <div className="relative h-full bg-slate-900">
@@ -215,6 +290,19 @@ const TerminalComponent = () => {
         <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs">
           Disconnected
         </div>
+      )}
+      
+      {/* Copy button */}
+      {showCopyButton && (
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded text-sm shadow-lg active:scale-95 transition-all duration-150 flex items-center gap-2 z-10"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Copy
+        </button>
       )}
       
       {/* Floating keyboard button */}

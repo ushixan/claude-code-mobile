@@ -7,6 +7,7 @@ import TerminalComponent from './components/Terminal/Terminal';
 import EditorComponent from './components/Editor/Editor';
 import PreviewComponent from './components/Preview/Preview';
 import FileExplorerComponent from './components/FileExplorer/FileExplorer';
+import ArrowControls from './components/ArrowControls/ArrowControls';
 
 function MainApp() {
   const { activeTab, setActiveTab } = useStore();
@@ -54,6 +55,9 @@ function MainApp() {
           {activeTab === 'files' && <FileExplorerComponent />}
         </div>
       </main>
+
+      {/* Arrow Controls */}
+      <ArrowControls />
 
       {/* Mobile-optimized Bottom Navigation */}
       <nav className="flex justify-around items-center bg-slate-800 border-t border-slate-700 px-2 pb-safe shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
