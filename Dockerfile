@@ -15,11 +15,6 @@ RUN apk add --no-cache \
 # Ensure bash is available at standard location
 RUN ln -sf /bin/bash /usr/bin/bash 2>/dev/null || true
 
-# Create a shell wrapper for cd command (Railway compatibility)
-RUN echo '#!/bin/sh' > /usr/local/bin/cd && \
-    echo 'builtin cd "$@"' >> /usr/local/bin/cd && \
-    chmod +x /usr/local/bin/cd
-
 WORKDIR /app
 
 # Copy package files
@@ -48,5 +43,5 @@ ENV NODE_ENV=production
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080
 
-# Start the server directly
-CMD ["node", "server/index.js"]
+# Use exec form to prevent shell interpretation
+CMD ["node", "/app/server/index.js"]

@@ -1,4 +1,7 @@
 console.log('Starting server initialization...');
+console.log('Current directory:', process.cwd());
+console.log('Node version:', process.version);
+console.log('Environment PORT:', process.env.PORT);
 
 const express = require('express');
 const http = require('http');
