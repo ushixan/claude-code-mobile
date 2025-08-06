@@ -46,6 +46,7 @@ const TerminalComponent = () => {
         brightCyan: '#22d3ee',
         white: '#e2e8f0',
         brightWhite: '#f1f5f9',
+        selection: '#4a5568',
       },
       fontSize: fontSize,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
@@ -54,9 +55,6 @@ const TerminalComponent = () => {
       allowProposedApi: true,
       // Mobile optimizations
       scrollOnUserInput: true,
-      // Enable selection for copy
-      selectionBackground: '#4a5568',
-      selectionForeground: '#ffffff',
     });
 
     xtermRef.current = term;
