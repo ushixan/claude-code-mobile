@@ -43,5 +43,5 @@ ENV NODE_ENV=production
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080
 
-# Use absolute path and explicit node binary
-ENTRYPOINT ["/usr/local/bin/node", "/app/server/index.js"]
+# Use shell form to prevent Railway override issues
+CMD node server/index.js

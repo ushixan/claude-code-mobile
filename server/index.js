@@ -516,28 +516,28 @@ io.on('connection', (socket) => {
       }
       
       sessionsToDelete.forEach(({ key, session }) => {
-      if (session && session.term) {
-        try {
-          // Properly kill the terminal process
-          if (typeof session.term.kill === 'function') {
-            session.term.kill();
+        if (session && session.term) {
+          try {
+            // Properly kill the terminal process
+            if (typeof session.term.kill === 'function') {
+              session.term.kill();
+            }
+          } catch (error) {
+            console.error('Error killing terminal:', error.message);
           }
-        } catch (error) {
-          console.error('Error killing terminal:', error.message);
-        }
-        
-        terminals.delete(key);
-        
-        // Clean up user tracking
-        if (session.userId && userTerminals.has(session.userId)) {
-          const userTerminalMap = userTerminals.get(session.userId);
-          userTerminalMap.delete(session.terminalId);
-          if (userTerminalMap.size === 0) {
-            userTerminals.delete(session.userId);
+          
+          terminals.delete(key);
+          
+          // Clean up user tracking
+          if (session.userId && userTerminals.has(session.userId)) {
+            const userTerminalMap = userTerminals.get(session.userId);
+            userTerminalMap.delete(session.terminalId);
+            if (userTerminalMap.size === 0) {
+              userTerminals.delete(session.userId);
+            }
           }
         }
       });
-    })
     });
     
     // Send initial prompt

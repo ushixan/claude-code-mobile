@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "cd server && npm run start",
+    "dev:server": "node server/index.js",
     "dev:all": "npm run dev & npm run dev:server",
     "build": "tsc -b && vite build",
     "start": "node server/index.js",
