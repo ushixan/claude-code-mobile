@@ -21,6 +21,7 @@ const TerminalComponent = () => {
   const [detectedUrl, setDetectedUrl] = useState('');
   const [showManualCopy, setShowManualCopy] = useState(false);
   const [allTerminalContent, setAllTerminalContent] = useState('');
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [terminalBuffer, setTerminalBuffer] = useState<string[]>(() => {
     // Load saved terminal buffer from localStorage
     const saved = localStorage.getItem('terminal-buffer');
@@ -87,10 +88,11 @@ const TerminalComponent = () => {
       fontSize: fontSize,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       cursorBlink: true,
-      scrollback: 1000,
+      scrollback: 5000,
       allowProposedApi: true,
       // Mobile optimizations
-      scrollOnUserInput: true,
+      scrollOnUserInput: false, // We control scrolling manually
+      smoothScrollDuration: 100,
     });
 
     xtermRef.current = term;
@@ -153,6 +155,20 @@ const TerminalComponent = () => {
     setTimeout(() => {
       term.focus();
     }, 100);
+    
+    // Track scroll position to show/hide scroll button
+    term.onScroll(() => {
+      const buffer = term.buffer.active;
+      const scrollbackSize = buffer.length - term.rows;
+      const scrollOffset = buffer.viewportY;
+      
+      // Show button if not at the bottom
+      if (scrollOffset < scrollbackSize) {
+        setShowScrollButton(true);
+      } else {
+        setShowScrollButton(false);
+      }
+    });
     
     // Ensure arrow keys and other special keys work properly
     term.attachCustomKeyEventHandler((event) => {
@@ -234,6 +250,13 @@ const TerminalComponent = () => {
       // Write to terminal first - don't block
       term.write(data);
       
+      // Auto-scroll to bottom to show latest content
+      setTimeout(() => {
+        if (term) {
+          term.scrollToBottom();
+        }
+      }, 10);
+      
       // Save to buffer for persistence
       setTerminalBuffer(prev => {
         const newBuffer = [...prev, data];
@@ -301,6 +324,13 @@ const TerminalComponent = () => {
     term.onData(data => {
       if (socket.connected) {
         socket.emit('terminal-input', data);
+        
+        // Auto-scroll to bottom when user types
+        setTimeout(() => {
+          if (term) {
+            term.scrollToBottom();
+          }
+        }, 10);
         
         // Also save user input to buffer for persistence
         setTerminalBuffer(prev => {
@@ -413,6 +443,14 @@ const TerminalComponent = () => {
       setAllTerminalContent('');
       localStorage.removeItem('terminal-buffer');
       showCopyNotification('Terminal cleared!');
+    }
+  };
+  
+  // Scroll to bottom
+  const scrollToBottom = () => {
+    if (xtermRef.current) {
+      xtermRef.current.scrollToBottom();
+      setShowScrollButton(false);
     }
   };
 
@@ -736,6 +774,18 @@ const TerminalComponent = () => {
           🔍 Find URL
         </button>
       </div>
+      
+      {/* Scroll to bottom button */}
+      {showScrollButton && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-20 right-4 w-14 h-14 bg-orange-600 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all duration-200 animate-pulse"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+      )}
       
       {/* Floating keyboard button */}
       <button
