@@ -722,13 +722,32 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0'; // Always bind to 0.0.0.0 for containers
 
+console.log('Starting server with configuration:');
+console.log(`- PORT: ${PORT}`);
+console.log(`- HOST: ${HOST}`);
+console.log(`- NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`- Current directory: ${process.cwd()}`);
+console.log(`- __dirname: ${__dirname}`);
+
+// Check if dist directory exists in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', 'dist');
+  const distExists = require('fs').existsSync(distPath);
+  console.log(`- Dist directory exists: ${distExists}`);
+  if (distExists) {
+    const indexHtmlExists = require('fs').existsSync(path.join(distPath, 'index.html'));
+    console.log(`- index.html exists: ${indexHtmlExists}`);
+  }
+}
+
 server.listen(PORT, HOST, (error) => {
   if (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
-  console.log(`Server running on ${HOST}:${PORT}`);
+  console.log(`✅ Server successfully started on ${HOST}:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Socket.io path: /socket.io/`);
   console.log(`Process ID: ${process.pid}`);
+  console.log(`Health check available at: http://${HOST}:${PORT}/health`);
 });

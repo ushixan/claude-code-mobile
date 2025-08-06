@@ -43,12 +43,15 @@ ENV NODE_ENV=production
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8080}/health || exit 1
+# Install wget for health check
+RUN apk add --no-cache wget
+
+# Copy start script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Ensure we're in the right directory
 WORKDIR /app
 
-# Use shell form to ensure proper execution
-CMD node server/index.js
+# Start the server using the start script
+CMD ["/app/start.sh"]
