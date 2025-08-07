@@ -36,17 +36,19 @@ const Preview = () => {
 
   // Smart mode selection based on URL and environment
   const selectBestMode = (url: string): PreviewMode => {
-    // Local development URLs work directly
+    // Same-origin can go direct
+    try {
+      const u = new URL(url);
+      const sameOrigin = u.origin === window.location.origin;
+      if (sameOrigin) return 'direct';
+    } catch {}
+    // Prefer proxy for localhost and most external links to bypass frame blocks
     if (url.includes('localhost') || url.includes('127.0.0.1')) {
-      return 'direct';
+      return 'proxy';
     }
-    
-    // Use service worker if available
-    if (swReady) {
-      return 'service-worker';
-    }
-    
-    // Fallback to server proxy
+    // If SW is ready, allow it to handle some cross-origin cases
+    if (swReady) return 'service-worker';
+    // Default to proxy for broad compatibility
     return 'proxy';
   };
 
@@ -78,10 +80,11 @@ const Preview = () => {
     
     if (!inputUrl) return;
     
-    // Ensure URL has protocol
-    let url = inputUrl;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    // Ensure URL has protocol (use http for localhost)
+    let url = inputUrl.trim();
+    const isLocal = /^(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i.test(url) || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1');
+    if (!/^https?:\/\//i.test(url)) {
+      url = (isLocal ? 'http://' : 'https://') + url;
     }
     
     // Auto-select best mode
@@ -318,7 +321,7 @@ const Preview = () => {
               title="Preview"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
               onLoad={handleLoadSuccess}
-              onError={() => handleLoadError('Failed to load iframe')}
+              onError={() => { handleLoadError('Failed to load iframe'); tryNextMode(); }}
             />
           )}
         </div>
@@ -355,7 +358,7 @@ const Preview = () => {
         
         {/* Tips */}
         <div className="mt-1 text-xs text-slate-500 text-center">
-          💡 Tip: Sites blocking iframes will automatically open in a new tab
+          💡 Tip: If a site blocks embedding, we auto-try proxy or open in a new tab
         </div>
       </div>
     </div>
