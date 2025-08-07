@@ -81,8 +81,11 @@ if (process.env.NODE_ENV === 'production') {
       }
       if (filePath.endsWith('.html')) {
         res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+        // Ensure fresh HTML on each deploy to avoid stale bundles
+        res.setHeader('Cache-Control', 'no-store, must-revalidate');
+        return;
       }
-      // Prevent caching issues during deployment
+      // Prevent caching issues during deployment for other assets
       res.setHeader('Cache-Control', 'public, max-age=3600');
     }
   }));

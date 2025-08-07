@@ -18,7 +18,7 @@ This guide will help you set up GitHub OAuth authentication for seamless git ope
 3. Fill in the application details:
    - **Application name**: Mobile IDE (or your preferred name)
    - **Homepage URL**: http://localhost:8080 (for development)
-   - **Authorization callback URL**: http://localhost:8080/api/auth/github/callback
+   - **Authorization callback URL**: https://mobile-terminal-ide-production-5a0a.up.railway.app/api/auth/github/callback
 4. Click "Register application"
 
 ### 2. Get Your Credentials
@@ -35,7 +35,7 @@ Edit the `.env` file in your project root and add your credentials:
 # GitHub OAuth Configuration
 GITHUB_CLIENT_ID=your_actual_client_id_here
 GITHUB_CLIENT_SECRET=your_actual_client_secret_here
-GITHUB_REDIRECT_URI=http://localhost:8080/api/auth/github/callback
+GITHUB_REDIRECT_URI=https://mobile-terminal-ide-production-5a0a.up.railway.app/api/auth/github/callback
 
 # JWT Secret (generate a random string)
 JWT_SECRET=your_random_jwt_secret_here
