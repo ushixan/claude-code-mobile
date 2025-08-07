@@ -1,50 +1,37 @@
-# Use Node.js with build tools
+# Simple Node.js Alpine image
 FROM node:18-alpine
 
-# Install build dependencies for node-pty and terminal tools
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    git \
-    bash \
-    coreutils \
-    procps \
-    ncurses
+# Install build dependencies for node-pty
+RUN apk add --no-cache python3 make g++ git bash
 
-# Ensure bash is available at standard location
-RUN ln -sf /bin/bash /usr/bin/bash 2>/dev/null || true
-
+# Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 COPY server/package*.json ./server/
 
-# Install root dependencies
+# Install dependencies
 RUN npm install
 
-# Install server dependencies with rebuild for native modules
+# Install server dependencies
 WORKDIR /app/server
-RUN npm install && npm rebuild || true
+RUN npm install
 
 # Go back to app root
 WORKDIR /app
 
-# Copy source code
+# Copy all source code
 COPY . .
 
-# Build frontend
+# Build the frontend
 RUN npm run build
-
-# Make startup script executable
-RUN chmod +x /app/start.sh
 
 # Set production environment
 ENV NODE_ENV=production
 
-# Expose port (Railway will override with its own PORT)
+# Expose port
 EXPOSE 8080
 
-# Use shell script for startup to ensure proper shell context
-CMD ["/bin/sh", "/app/start.sh"]
+# Start the server directly - no shell scripts, no cd commands
+CMD ["node", "server/index.js"]

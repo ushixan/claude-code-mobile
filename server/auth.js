@@ -127,11 +127,11 @@ fi
     const workspacePath = path.join(process.cwd(), 'user-workspaces', userId, workspaceId);
     
     return new Promise((resolve, reject) => {
-      // Set up git config for this workspace
+      // Set up git config for this workspace using git -C option instead of cd
       const commands = [
-        `cd "${workspacePath}" && git config user.name "${githubUsername}"`,
-        `cd "${workspacePath}" && git config user.email "${githubUsername}@users.noreply.github.com"`,
-        `cd "${workspacePath}" && git config credential.helper "${credentialHelperPath}"`
+        `git -C "${workspacePath}" config user.name "${githubUsername}"`,
+        `git -C "${workspacePath}" config user.email "${githubUsername}@users.noreply.github.com}"`,
+        `git -C "${workspacePath}" config credential.helper "${credentialHelperPath}"`
       ];
       
       let completed = 0;
