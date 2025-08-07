@@ -112,7 +112,7 @@ class GitHubAuth {
     await fs.mkdir(credentialHelperDir, { recursive: true });
     
     // Create the credential helper script
-    const helperScript = `#!/bin/bash
+    const helperScript = `#!/bin/sh
 if [ "$1" = "get" ]; then
     echo "protocol=https"
     echo "host=github.com"
@@ -127,11 +127,12 @@ fi
     const workspacePath = path.join(process.cwd(), 'user-workspaces', userId, workspaceId);
     
     return new Promise((resolve, reject) => {
-      // Set up git config for this workspace using git -C option instead of cd
+      // Prefer global config so nested repos inherit credentials
       const commands = [
-        `git -C "${workspacePath}" config user.name "${githubUsername}"`,
-        `git -C "${workspacePath}" config user.email "${githubUsername}@users.noreply.github.com}"`,
-        `git -C "${workspacePath}" config credential.helper "${credentialHelperPath}"`
+        `git config --global user.name "${githubUsername}"`,
+        `git config --global user.email "${githubUsername}@users.noreply.github.com"`,
+        `git config --global credential.helper "${credentialHelperPath}"`,
+        `git config --global credential.useHttpPath true`
       ];
       
       let completed = 0;
@@ -150,7 +151,7 @@ fi
             } else {
               resolve({
                 success: true,
-                message: 'Git configured successfully'
+                message: 'Git configured successfully (global)'
               });
             }
           }

@@ -636,6 +636,24 @@ io.on('connection', (socket) => {
       socket.emit('terminal-output', data);
     });
 
+    // If we already have a GitHub token for this user, configure git credentials automatically
+    if (userId && workspaceId) {
+      const token = githubAuth.getAccessToken(userId);
+      if (token) {
+        githubAuth.configureGitCredentials(userId, workspaceId)
+          .then(() => {
+            try {
+              term.write(`\r\nConfigured git credentials for @${githubAuth.userTokens.get(userId)?.githubUsername}\r\n`);
+            } catch {}
+          })
+          .catch((err) => {
+            try {
+              term.write(`\r\n\x1b[31mFailed to configure git:\x1b[0m ${err.message}\r\n`);
+            } catch {}
+          });
+      }
+    }
+
     socket.on('terminal-input', (data) => {
       if (term && typeof term.write === 'function') {
         try {

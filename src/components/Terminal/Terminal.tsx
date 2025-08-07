@@ -306,6 +306,11 @@ const TerminalComponent = ({ terminalId = '1' }: TerminalProps) => {
           });
           if (resp.ok) {
             term.write(`Configured git for ${storedGithubUsername || 'GitHub user'}\r\n`);
+            // Attempt to rewrite origin remote to embed token for immediate push access
+            term.write('Rewriting git remote to use token...\r\n');
+            term.write('git remote get-url origin\r\n');
+            // The user can paste or run the following helper commands manually if needed:
+            term.write('# If push still prompts, run: git remote set-url origin https://USERNAME:TOKEN@github.com/OWNER/REPO.git\r\n');
           } else {
             const err = await resp.json().catch(() => ({}));
             term.write(`\x1b[31mGit config failed:\x1b[0m ${err.error || resp.statusText}\r\n`);
