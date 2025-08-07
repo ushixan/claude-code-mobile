@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Terminal, Code2, Smartphone } from 'lucide-react'
 import { FaGithub } from 'react-icons/fa'
@@ -26,7 +26,7 @@ const AuthForm = () => {
       } else if (!isLogin) {
         setError('Check your email for the confirmation link!')
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -38,18 +38,22 @@ const AuthForm = () => {
     setError('')
     
     try {
-      // Use YOUR server's GitHub OAuth endpoint
-      const baseUrl = import.meta.env.DEV 
-        ? 'http://localhost:8080' 
-        : window.location.origin;
+      // Use relative path so Vite proxy handles dev routing
+      const baseUrl = ''
       
       // Get the auth URL from your server
       const response = await fetch(`${baseUrl}/api/auth/github`);
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`)
+      }
       const { authUrl } = await response.json();
       
+      if (!authUrl) {
+        throw new Error('Missing authUrl in response')
+      }
       // Redirect to GitHub for authentication
       window.location.href = authUrl;
-    } catch (err) {
+    } catch {
       setError('Failed to initiate GitHub login. Please try email/password.')
     } finally {
       setLoading(false)
@@ -57,7 +61,7 @@ const AuthForm = () => {
   }
 
   return (
-    <div className="w-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 overflow-y-auto" style={{ minHeight: '100vh', WebkitOverflowScrolling: 'touch' } as any}>
+    <div className="w-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 overflow-y-auto" style={{ minHeight: '100vh', WebkitOverflowScrolling: 'touch' } as CSSProperties}>
       <div className="w-full max-w-md mx-auto px-4 py-4 sm:py-8 min-h-screen">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">

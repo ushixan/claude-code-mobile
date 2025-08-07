@@ -17,7 +17,7 @@ if (!supabaseUrl || !supabaseKey) {
 // Create client even if credentials are missing to avoid import errors
 export const supabase = supabaseUrl && supabaseKey 
   ? createClient(supabaseUrl, supabaseKey)
-  : null as any
+  : ({} as unknown as ReturnType<typeof createClient>)
 
 // Export types
 export type UserWorkspace = {
