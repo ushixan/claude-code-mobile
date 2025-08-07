@@ -3,10 +3,14 @@ console.log('Current directory:', process.cwd());
 console.log('Node version:', process.version);
 console.log('Environment PORT:', process.env.PORT);
 
+// Load environment variables
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const GitHubAuth = require('./auth');
 
 // Try to load node-pty with error handling
 let pty;
@@ -43,6 +47,9 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+
+// Initialize GitHub Auth
+const githubAuth = new GitHubAuth();
 
 // Serve static files from dist directory in production
 if (process.env.NODE_ENV === 'production') {
@@ -89,6 +96,94 @@ app.get('/health', (req, res) => {
 // Test endpoint
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working', timestamp: new Date().toISOString() });
+});
+
+// GitHub OAuth endpoints
+app.get('/api/auth/github', (req, res) => {
+  const state = req.query.state || Math.random().toString(36).substring(7);
+  const authUrl = githubAuth.getAuthUrl(state);
+  res.json({ authUrl, state });
+});
+
+app.get('/api/auth/github/callback', async (req, res) => {
+  const { code, state } = req.query;
+  
+  if (!code) {
+    return res.status(400).send('Authorization code is required');
+  }
+  
+  try {
+    // Exchange code for token
+    const tokenData = await githubAuth.exchangeCodeForToken(code);
+    
+    if (tokenData.error) {
+      return res.status(400).json({ error: tokenData.error_description });
+    }
+    
+    // Get user info
+    const userInfo = await githubAuth.getUserInfo(tokenData.access_token);
+    
+    // Generate JWT
+    const jwt = githubAuth.generateJWT(
+      userInfo.id.toString(),
+      userInfo.login,
+      tokenData.access_token
+    );
+    
+    // Redirect to frontend with JWT
+    const redirectUrl = process.env.NODE_ENV === 'production' 
+      ? `/auth/success?token=${jwt}&username=${userInfo.login}`
+      : `http://localhost:5173/auth/success?token=${jwt}&username=${userInfo.login}`;
+    
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error('GitHub OAuth error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+app.get('/api/auth/verify', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  
+  const decoded = githubAuth.verifyJWT(token);
+  
+  if (!decoded) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  res.json({
+    userId: decoded.userId,
+    githubUsername: decoded.githubUsername,
+    expiresAt: new Date(decoded.exp * 1000)
+  });
+});
+
+// Configure git for authenticated user
+app.post('/api/auth/configure-git', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const { workspaceId } = req.body;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  
+  const decoded = githubAuth.verifyJWT(token);
+  
+  if (!decoded) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  try {
+    const result = await githubAuth.configureGitCredentials(decoded.userId, workspaceId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error configuring git:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Debug endpoint to test query parameters
@@ -403,11 +498,26 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
   console.log('Total connected clients:', io.engine.clientsCount);
 
-  socket.on('create-terminal', (data) => {
-    const { userId, workspaceId, terminalId = '1' } = data;
+  socket.on('create-terminal', async (data) => {
+    const { userId, workspaceId, terminalId = '1', token } = data;
     
-    // For now, allow terminals without user auth for backward compatibility
-    // In production, you'd want to verify the JWT token here
+    // Verify token if provided and configure git
+    let authenticatedUserId = userId;
+    if (token) {
+      const decoded = githubAuth.verifyJWT(token);
+      if (decoded) {
+        authenticatedUserId = decoded.userId;
+        // Configure git for this workspace if authenticated
+        if (workspaceId) {
+          try {
+            await githubAuth.configureGitCredentials(authenticatedUserId, workspaceId);
+            console.log('Git configured for user:', authenticatedUserId);
+          } catch (error) {
+            console.error('Failed to configure git:', error);
+          }
+        }
+      }
+    }
     
     // Detect available shell - Alpine uses sh by default
     let shell = 'sh'; // Default fallback

@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Terminal, Code, Globe, FolderOpen, LogOut } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useStore } from './store/useStore';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthForm from './components/Auth/AuthForm';
@@ -9,10 +10,14 @@ import PreviewComponent from './components/Preview/Preview';
 import FileExplorerComponent from './components/FileExplorer/FileExplorer';
 import ArrowControls from './components/ArrowControls/ArrowControls';
 import SwipeableView from './components/MobileEnhancements/SwipeableView';
+import GitHubLogin from './components/GitHubLogin';
+import AuthSuccess from './pages/AuthSuccess';
 
 function MainApp() {
   const { activeTab, setActiveTab } = useStore();
   const { user, signOut } = useAuth();
+  const [githubToken, setGithubToken] = useState<string | null>(null);
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
 
   const tabs = [
     { id: 'terminal', icon: Terminal, label: 'Terminal' },
@@ -23,28 +28,44 @@ function MainApp() {
 
   const handleSignOut = async () => {
     await signOut();
+    // Also clear GitHub auth
+    localStorage.removeItem('github_token');
+    localStorage.removeItem('github_username');
+    setGithubToken(null);
+    setGithubUsername(null);
+  };
+
+  const handleGitHubLogin = (token: string, username: string) => {
+    setGithubToken(token);
+    setGithubUsername(username);
   };
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-white" style={{ height: '100dvh' }}>
       {/* Mobile-optimized Header */}
-      <header className="bg-slate-800 border-b border-slate-700 px-3 py-2 flex items-center justify-between shrink-0">
-        <div className="flex items-center space-x-2 min-w-0">
-          <div className="bg-blue-600 p-1.5 rounded-lg shrink-0">
-            <Terminal className="w-4 h-4 text-white" />
+      <header className="bg-slate-800 border-b border-slate-700 px-3 py-2 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 min-w-0">
+            <div className="bg-blue-600 p-1.5 rounded-lg shrink-0">
+              <Terminal className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-semibold text-sm text-white truncate">Mobile IDE</h1>
+              <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="font-semibold text-sm text-white truncate">Mobile IDE</h1>
-            <p className="text-xs text-slate-400 truncate">{user?.email}</p>
-          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center space-x-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-xs hidden sm:inline">Sign Out</span>
+          </button>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center space-x-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors shrink-0"
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="text-xs hidden sm:inline">Sign Out</span>
-        </button>
+        {/* GitHub Login Section */}
+        <div className="mt-2">
+          <GitHubLogin onLogin={handleGitHubLogin} />
+        </div>
       </header>
 
       {/* Main Content Area - Keep all components mounted but hidden */}
@@ -101,9 +122,14 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <AuthenticatedApp />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/auth/success" element={<AuthSuccess />} />
+          <Route path="/*" element={<AuthenticatedApp />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 

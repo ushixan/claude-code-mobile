@@ -244,12 +244,14 @@ const TerminalComponent = ({ terminalId = '1' }: TerminalProps) => {
       setIsConnected(true);
       
       // Create terminal session with user context and terminal ID
+      const githubToken = localStorage.getItem('github_token');
       socket.emit('create-terminal', {
         cols: term.cols,
         rows: term.rows,
         userId: user?.id,
         workspaceId: user?.id, // Use user.id as workspaceId for simplicity
-        terminalId: terminalId
+        terminalId: terminalId,
+        token: githubToken
       });
     });
 
