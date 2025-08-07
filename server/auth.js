@@ -9,7 +9,7 @@ class GitHubAuth {
   constructor() {
     this.clientId = process.env.GITHUB_CLIENT_ID;
     this.clientSecret = process.env.GITHUB_CLIENT_SECRET;
-    this.redirectUri = process.env.GITHUB_REDIRECT_URI || 'http://localhost:8080/api/auth/github/callback';
+    this.redirectUri = process.env.GITHUB_REDIRECT_URI || 'https://mobile-terminal-ide-production-5a0a.up.railway.app/api/auth/github/callback';
     this.jwtSecret = process.env.JWT_SECRET || 'default_secret_change_in_production';
     this.userTokens = new Map(); // Store tokens in memory (use Redis/DB in production)
   }
