@@ -245,24 +245,75 @@ const TerminalComponent = ({ terminalId = '1' }: TerminalProps) => {
       
       // Create terminal session with user context and terminal ID
       // Get GitHub username from user metadata if they signed in with GitHub
-      const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username;
-      const userEmail = user?.email || `${user?.id}@users.noreply.github.com`;
-      
+      const storedGithubUsername = localStorage.getItem('github_username') || undefined;
+      const jwtToken = localStorage.getItem('github_token') || undefined;
+      let decodedUserId: string | undefined;
+      if (jwtToken && jwtToken.split('.').length === 3) {
+        try {
+          const payload = JSON.parse(atob(jwtToken.split('.')[1]));
+          decodedUserId = String(payload.userId || '');
+        } catch {
+          // ignore decode errors
+        }
+      }
+
+      const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || storedGithubUsername;
+      const effectiveUserId = user?.id || decodedUserId || 'github-user';
+      const userEmail = user?.email || `${githubUsername || effectiveUserId}@users.noreply.github.com`;
+      const workspaceId = effectiveUserId; // keep stable per user
+
       socket.emit('create-terminal', {
         cols: term.cols,
         rows: term.rows,
-        userId: user?.id,
-        workspaceId: user?.id, // Use user.id as workspaceId for simplicity
+        userId: effectiveUserId,
+        workspaceId: workspaceId, // workspace per user
         terminalId: terminalId,
         githubUsername: githubUsername,
         userEmail: userEmail
       });
     });
 
-    socket.on('terminal-ready', () => {
+    socket.on('terminal-ready', async () => {
       console.log('Terminal ready');
       setTerminalReady(true);
       term.write('\x1b[32mTerminal connected successfully!\x1b[0m\r\n');
+
+      // After terminal is ready, configure git credentials if GitHub token exists
+      try {
+        const jwtToken = localStorage.getItem('github_token');
+        const storedGithubUsername = localStorage.getItem('github_username') || undefined;
+        let decodedUserId: string | undefined;
+        if (jwtToken && jwtToken.split('.').length === 3) {
+          try {
+            const payload = JSON.parse(atob(jwtToken.split('.')[1]));
+            decodedUserId = String(payload.userId || '');
+          } catch {
+            // ignore decode errors
+          }
+        }
+        const effectiveUserId = user?.id || decodedUserId || 'github-user';
+        const workspaceId = effectiveUserId;
+
+        if (jwtToken) {
+          const baseUrl = import.meta.env.DEV ? '' : '';
+          const resp = await fetch(`${baseUrl}/api/auth/configure-git`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${jwtToken}`
+            },
+            body: JSON.stringify({ workspaceId })
+          });
+          if (resp.ok) {
+            term.write(`Configured git for ${storedGithubUsername || 'GitHub user'}\r\n`);
+          } else {
+            const err = await resp.json().catch(() => ({}));
+            term.write(`\x1b[31mGit config failed:\x1b[0m ${err.error || resp.statusText}\r\n`);
+          }
+        }
+      } catch (e) {
+        term.write(`\x1b[31mGit config error:\x1b[0m ${e instanceof Error ? e.message : 'unknown'}\r\n`);
+      }
     });
 
     socket.on('terminal-output', (data: string) => {
