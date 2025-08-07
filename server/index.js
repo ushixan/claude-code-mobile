@@ -70,15 +70,20 @@ if (process.env.NODE_ENV === 'production') {
   
   // Serve static files with proper headers
   app.use(express.static(distPath, {
-    maxAge: '1d',
-    etag: false,
-    setHeaders: (res, path) => {
-      if (path.endsWith('.js')) {
-        res.setHeader('Content-Type', 'application/javascript');
+    maxAge: '1h',
+    etag: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
       }
-      if (path.endsWith('.css')) {
-        res.setHeader('Content-Type', 'text/css');
+      if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=UTF-8');
       }
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+      }
+      // Prevent caching issues during deployment
+      res.setHeader('Cache-Control', 'public, max-age=3600');
     }
   }));
 }
@@ -840,9 +845,16 @@ async function buildFileTree(dirPath, maxDepth = 3, currentDepth = 0) {
   return tree;
 }
 
-// Catch-all handler for SPA in production
+// Catch-all handler for SPA in production - but NOT for asset files
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
+    // Don't serve index.html for asset requests
+    const ext = path.extname(req.path);
+    if (ext && ext !== '.html') {
+      // If it's an asset file that wasn't found, return 404
+      return res.status(404).send('Not found');
+    }
+    // For routes without extensions, serve the SPA
     res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
   });
 }
