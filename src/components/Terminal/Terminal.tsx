@@ -244,14 +244,18 @@ const TerminalComponent = ({ terminalId = '1' }: TerminalProps) => {
       setIsConnected(true);
       
       // Create terminal session with user context and terminal ID
-      const githubToken = localStorage.getItem('github_token');
+      // Get GitHub username from user metadata if they signed in with GitHub
+      const githubUsername = user?.user_metadata?.user_name || user?.user_metadata?.preferred_username;
+      const userEmail = user?.email || `${user?.id}@users.noreply.github.com`;
+      
       socket.emit('create-terminal', {
         cols: term.cols,
         rows: term.rows,
         userId: user?.id,
         workspaceId: user?.id, // Use user.id as workspaceId for simplicity
         terminalId: terminalId,
-        token: githubToken
+        githubUsername: githubUsername,
+        userEmail: userEmail
       });
     });
 

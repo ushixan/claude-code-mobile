@@ -10,7 +10,6 @@ import PreviewComponent from './components/Preview/Preview';
 import FileExplorerComponent from './components/FileExplorer/FileExplorer';
 import ArrowControls from './components/ArrowControls/ArrowControls';
 import SwipeableView from './components/MobileEnhancements/SwipeableView';
-import GitHubLogin from './components/GitHubLogin';
 import AuthSuccess from './pages/AuthSuccess';
 
 function MainApp() {
@@ -29,12 +28,6 @@ function MainApp() {
     // Also clear GitHub auth
     localStorage.removeItem('github_token');
     localStorage.removeItem('github_username');
-  };
-
-  const handleGitHubLogin = (token: string, username: string) => {
-    // Store GitHub credentials in localStorage
-    localStorage.setItem('github_token', token);
-    localStorage.setItem('github_username', username);
   };
 
   return (
@@ -58,10 +51,6 @@ function MainApp() {
             <LogOut className="w-4 h-4" />
             <span className="text-xs hidden sm:inline">Sign Out</span>
           </button>
-        </div>
-        {/* GitHub Login Section */}
-        <div className="mt-2">
-          <GitHubLogin onLogin={handleGitHubLogin} />
         </div>
       </header>
 

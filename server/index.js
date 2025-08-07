@@ -504,23 +504,30 @@ io.on('connection', (socket) => {
   console.log('Total connected clients:', io.engine.clientsCount);
 
   socket.on('create-terminal', async (data) => {
-    const { userId, workspaceId, terminalId = '1', token } = data;
+    const { userId, workspaceId, terminalId = '1', githubUsername, userEmail } = data;
     
-    // Verify token if provided and configure git
-    let authenticatedUserId = userId;
-    if (token) {
-      const decoded = githubAuth.verifyJWT(token);
-      if (decoded) {
-        authenticatedUserId = decoded.userId;
-        // Configure git for this workspace if authenticated
-        if (workspaceId) {
-          try {
-            await githubAuth.configureGitCredentials(authenticatedUserId, workspaceId);
-            console.log('Git configured for user:', authenticatedUserId);
-          } catch (error) {
-            console.error('Failed to configure git:', error);
-          }
-        }
+    // Configure git with user information if provided
+    let gitConfigCommands = [];
+    if (userId && workspaceId) {
+      // Create workspace directory first
+      const userWorkspaceDir = path.join(process.cwd(), 'user-workspaces', userId, workspaceId);
+      
+      // Configure git for this workspace
+      if (githubUsername) {
+        gitConfigCommands.push(`git config --global user.name "${githubUsername}"`);
+      } else if (userEmail) {
+        // Use email username as fallback
+        const username = userEmail.split('@')[0];
+        gitConfigCommands.push(`git config --global user.name "${username}"`);
+      }
+      
+      if (userEmail) {
+        gitConfigCommands.push(`git config --global user.email "${userEmail}"`);
+      }
+      
+      // Log git configuration
+      if (gitConfigCommands.length > 0) {
+        console.log('Configuring git for user:', userId, 'with:', githubUsername || userEmail);
       }
     }
     
@@ -623,6 +630,18 @@ io.on('connection', (socket) => {
         }
       }
     });
+    
+    // Execute git config commands after terminal is ready
+    if (gitConfigCommands.length > 0) {
+      setTimeout(() => {
+        gitConfigCommands.forEach(cmd => {
+          term.write(`${cmd}\r\n`);
+        });
+        // Show configured git info
+        term.write('git config --global user.name\r\n');
+        term.write('git config --global user.email\r\n');
+      }, 500);
+    }
 
     socket.on('resize', (data) => {
       if (term && typeof term.resize === 'function') {
