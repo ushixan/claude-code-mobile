@@ -37,11 +37,14 @@ COPY . .
 # Build frontend
 RUN npm run build
 
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
 # Set production environment
 ENV NODE_ENV=production
 
 # Expose port (Railway will override with its own PORT)
 EXPOSE 8080
 
-# Use exec form to prevent shell interpretation
-CMD ["node", "/app/server/index.js"]
+# Use shell script for startup to ensure proper shell context
+CMD ["/bin/sh", "/app/start.sh"]
