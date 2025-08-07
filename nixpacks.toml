@@ -1,0 +1,17 @@
+# Nixpacks configuration - fallback if Dockerfile isn't used
+# This explicitly tells Nixpacks NOT to use cd commands
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "python3", "gcc", "gnumake", "git", "bash"]
+
+[phases.install]
+cmds = [
+    "npm install",
+    "npm --prefix server install"
+]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "node server/index.js"

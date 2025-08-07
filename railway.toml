@@ -1,0 +1,20 @@
+# Railway configuration file
+# Ensures we use Dockerfile and proper settings
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "./Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+numReplicas = 1
+
+# Explicitly set the start command in case Railway needs it
+startCommand = "node server/index.js"
+
+# Environment variables
+[deploy.env]
+NODE_ENV = "production"

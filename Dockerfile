@@ -33,5 +33,6 @@ ENV NODE_ENV=production
 # Expose port
 EXPOSE 8080
 
-# Start the server directly - no shell scripts, no cd commands
-CMD ["node", "server/index.js"]
+# Start the server - using shell form for compatibility
+# This ensures it runs through /bin/sh and handles any edge cases
+CMD node server/index.js
