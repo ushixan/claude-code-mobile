@@ -1,7 +1,6 @@
-const CACHE_NAME = 'mobile-terminal-ide-v2';
+const CACHE_NAME = 'mobile-terminal-ide-v3';
 const urlsToCache = [
-  '/',
-  '/index.html',
+  // Do not precache '/' or '/index.html' to avoid serving stale HTML
   '/manifest.json',
 ];
 
@@ -48,17 +47,11 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  // For navigation requests, try network first with timeout
+  // For navigation requests, always prefer network; fallback to cache only if offline
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      Promise.race([
-        fetch(event.request),
-        new Promise((resolve, reject) => 
-          setTimeout(() => reject(new Error('timeout')), 3000)
-        )
-      ])
-      .then(response => response)
-      .catch(() => caches.match('/index.html'))
+      fetch(event.request)
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
