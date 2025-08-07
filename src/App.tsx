@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Terminal, Code, Globe, FolderOpen, LogOut } from 'lucide-react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useStore } from './store/useStore';
@@ -16,8 +16,6 @@ import AuthSuccess from './pages/AuthSuccess';
 function MainApp() {
   const { activeTab, setActiveTab } = useStore();
   const { user, signOut } = useAuth();
-  const [githubToken, setGithubToken] = useState<string | null>(null);
-  const [githubUsername, setGithubUsername] = useState<string | null>(null);
 
   const tabs = [
     { id: 'terminal', icon: Terminal, label: 'Terminal' },
@@ -31,13 +29,12 @@ function MainApp() {
     // Also clear GitHub auth
     localStorage.removeItem('github_token');
     localStorage.removeItem('github_username');
-    setGithubToken(null);
-    setGithubUsername(null);
   };
 
   const handleGitHubLogin = (token: string, username: string) => {
-    setGithubToken(token);
-    setGithubUsername(username);
+    // Store GitHub credentials in localStorage
+    localStorage.setItem('github_token', token);
+    localStorage.setItem('github_username', username);
   };
 
   return (
