@@ -9,7 +9,7 @@ const AuthForm = () => {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { signIn, signUp, signInWithGitHub } = useAuth()
+  const { signIn, signUp } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,12 +38,19 @@ const AuthForm = () => {
     setError('')
     
     try {
-      const { error } = await signInWithGitHub()
-      if (error) {
-        setError(error.message)
-      }
+      // Use YOUR server's GitHub OAuth endpoint
+      const baseUrl = import.meta.env.DEV 
+        ? 'http://localhost:8080' 
+        : window.location.origin;
+      
+      // Get the auth URL from your server
+      const response = await fetch(`${baseUrl}/api/auth/github`);
+      const { authUrl } = await response.json();
+      
+      // Redirect to GitHub for authentication
+      window.location.href = authUrl;
     } catch (err) {
-      setError('Failed to sign in with GitHub')
+      setError('Failed to initiate GitHub login. Please try email/password.')
     } finally {
       setLoading(false)
     }

@@ -11,14 +11,15 @@ const AuthSuccess = () => {
     const username = urlParams.get('username');
 
     if (token && username) {
-      // Store in localStorage
+      // Store GitHub credentials
       localStorage.setItem('github_token', token);
       localStorage.setItem('github_username', username);
+      localStorage.setItem('github_authenticated', 'true');
       
       // Redirect to main app
       setTimeout(() => {
-        navigate('/');
-      }, 2000);
+        window.location.href = '/'; // Full page reload to update auth state
+      }, 1500);
     } else {
       // No token, redirect to home
       navigate('/');

@@ -12,9 +12,12 @@ import ArrowControls from './components/ArrowControls/ArrowControls';
 import SwipeableView from './components/MobileEnhancements/SwipeableView';
 import AuthSuccess from './pages/AuthSuccess';
 
-function MainApp() {
+function MainApp({ authUser, githubUsername }) {
   const { activeTab, setActiveTab } = useStore();
   const { user, signOut } = useAuth();
+  
+  // Use authUser (which could be GitHub or Supabase user)
+  const currentUser = authUser || user;
 
   const tabs = [
     { id: 'terminal', icon: Terminal, label: 'Terminal' },
@@ -24,10 +27,16 @@ function MainApp() {
   ] as const;
 
   const handleSignOut = async () => {
-    await signOut();
-    // Also clear GitHub auth
+    // Sign out from Supabase if applicable
+    if (user) {
+      await signOut();
+    }
+    // Clear GitHub auth
     localStorage.removeItem('github_token');
     localStorage.removeItem('github_username');
+    localStorage.removeItem('github_authenticated');
+    // Reload to login page
+    window.location.href = '/';
   };
 
   return (
@@ -41,7 +50,9 @@ function MainApp() {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="font-semibold text-sm text-white truncate">Mobile IDE</h1>
-              <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+              <p className="text-xs text-slate-400 truncate">
+                {githubUsername ? `@${githubUsername}` : currentUser?.email}
+              </p>
             </div>
           </div>
           <button
@@ -131,13 +142,25 @@ function App() {
 
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
+  
+  // Check for GitHub authentication as alternative to Supabase
+  const githubToken = localStorage.getItem('github_token');
+  const githubUsername = localStorage.getItem('github_username');
+  const isGitHubAuthenticated = localStorage.getItem('github_authenticated') === 'true';
+  
+  // User is authenticated if they have Supabase user OR GitHub token
+  const isAuthenticated = user || (githubToken && isGitHubAuthenticated);
 
-  console.log('AuthenticatedApp render:', { user: !!user, loading });
+  console.log('AuthenticatedApp render:', { 
+    supabaseUser: !!user, 
+    githubAuth: isGitHubAuthenticated,
+    loading 
+  });
 
   useEffect(() => {
     // Apply overflow hidden only when user is logged in (MainApp)
     // Allow normal scrolling on auth pages
-    if (user) {
+    if (isAuthenticated) {
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
@@ -156,7 +179,7 @@ function AuthenticatedApp() {
       document.body.style.position = '';
       document.body.style.width = '';
     };
-  }, [user]);
+  }, [isAuthenticated]);
 
   if (loading) {
     console.log('Showing loading screen');
@@ -170,13 +193,20 @@ function AuthenticatedApp() {
     );
   }
 
-  if (!user) {
-    console.log('No user, showing auth form');
+  if (!isAuthenticated) {
+    console.log('No authentication, showing auth form');
     return <AuthForm />;
   }
 
   console.log('User authenticated, showing main app');
-  return <MainApp />;
+  // Pass GitHub info if available
+  const authUser = user || {
+    id: githubUsername || 'github-user',
+    email: `${githubUsername}@github.local`,
+    user_metadata: { user_name: githubUsername }
+  };
+  
+  return <MainApp authUser={authUser} githubUsername={githubUsername} />;
 }
 
 export default App;
