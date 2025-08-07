@@ -106,6 +106,18 @@ app.get('/api/test', (req, res) => {
 // GitHub OAuth endpoints
 app.get('/api/auth/github', (req, res) => {
   const state = req.query.state || Math.random().toString(36).substring(7);
+  
+  // Dynamically set redirect URI to current origin for production (and proxies)
+  try {
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    const host = req.headers['x-forwarded-host'] || req.headers['host'];
+    if (proto && host) {
+      githubAuth.redirectUri = `${proto}://${host}/api/auth/github/callback`;
+    }
+  } catch (e) {
+    // Fallback to existing config if header derivation fails
+  }
+
   const authUrl = githubAuth.getAuthUrl(state);
   res.json({ authUrl, state });
 });

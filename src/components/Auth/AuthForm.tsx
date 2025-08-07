@@ -38,8 +38,10 @@ const AuthForm = () => {
     setError('')
     
     try {
-      // Use relative path so Vite proxy handles dev routing
-      const baseUrl = ''
+      // Use same-origin in dev; explicit production API base
+      const baseUrl = import.meta.env.DEV
+        ? ''
+        : 'https://mobile-terminal-ide-production-5a0a.up.railway.app'
       
       // Get the auth URL from your server
       const response = await fetch(`${baseUrl}/api/auth/github`);
