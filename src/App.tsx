@@ -112,9 +112,19 @@ function App() {
   
   useEffect(() => {
     console.log('App useEffect running');
-    // Only register service worker in production
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    // Disable service worker temporarily - it's causing issues
+    // if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    //   navigator.serviceWorker.register('/sw.js').catch(console.error);
+    // }
+    
+    // Unregister any existing service workers
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+          registration.unregister();
+          console.log('Unregistered service worker:', registration);
+        });
+      });
     }
   }, []);
 

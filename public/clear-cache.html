@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cache - Mobile Terminal IDE</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        h1 {
+            color: #60a5fa;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .success {
+            color: #10b981;
+            margin-top: 20px;
+        }
+        .error {
+            color: #ef4444;
+            margin-top: 20px;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #334155;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clear Cache & Service Workers</h1>
+        <p>If you're experiencing issues with the app, click below to clear all cached data and service workers.</p>
+        
+        <button onclick="clearEverything()">Clear All Cache & Reload</button>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function clearEverything() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Clearing cache...';
+            
+            try {
+                // Unregister all service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        console.log('Unregistered:', registration);
+                    }
+                    status.innerHTML += '<br>✓ Service workers unregistered';
+                }
+                
+                // Clear all caches
+                if ('caches' in window) {
+                    const names = await caches.keys();
+                    for (let name of names) {
+                        await caches.delete(name);
+                        console.log('Deleted cache:', name);
+                    }
+                    status.innerHTML += '<br>✓ Caches cleared';
+                }
+                
+                // Clear localStorage
+                localStorage.clear();
+                sessionStorage.clear();
+                status.innerHTML += '<br>✓ Storage cleared';
+                
+                status.innerHTML += '<br><br><span class="success">✓ All cache cleared successfully!</span>';
+                status.innerHTML += '<br><br>Redirecting to app in 2 seconds...';
+                
+                // Redirect to main app
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                
+            } catch (error) {
+                status.innerHTML = '<span class="error">Error: ' + error.message + '</span>';
+                console.error('Error clearing cache:', error);
+            }
+        }
+        
+        // Auto-clear on page load
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auto') === 'true') {
+                clearEverything();
+            }
+        });
+    </script>
+</body>
+</html>
